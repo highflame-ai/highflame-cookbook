@@ -1,0 +1,2 @@
+# The hook call uses only the Python stdlib (urllib). dotenv is an optional convenience.
+python-dotenv>=1.0.0
