@@ -12,8 +12,8 @@ Roo Code.
 
 ```
 Coding agent ──▶ Tailscale Aperture ──guardrail──▶ Highflame ──▶ allow · block · redact
-                       │                                              (+ branded message)
-                       └──◀──── "Highflame Security has blocked…" (your message) ◀───┘
+                       │                                          (+ the message you set)
+                       └──◀──── "Highflame Security has blocked…" ◀───┘
 ```
 
 > **Try it end to end.** Open the companion app —
