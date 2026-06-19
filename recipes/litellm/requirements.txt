@@ -1,0 +1,4 @@
+# Mode A needs only litellm. Mode B also needs the Highflame SDK (to mint Shield's JWT).
+litellm>=1.50.0
+highflame>=0.1.0
+python-dotenv>=1.0.0

@@ -1,0 +1,29 @@
+# Mode A — Highflame Firehog as an upstream provider in your existing LiteLLM proxy.
+#
+# Start with:   litellm --config mode_a_litellm_proxy_config.yaml
+# Your apps then call `gpt-4o-secured` / `claude-secured` exactly like any other
+# LiteLLM model; LiteLLM routes them through Firehog, and Shield enforces inline.
+#
+# Note the DOUBLE provider prefix in `model:` (openai/openai/..., openai/anthropic/...).
+# LiteLLM strips its own leading `openai/` to pick the OpenAI-compatible transport;
+# Firehog needs the remaining `{provider}/{model}` to know which upstream to call.
+
+model_list:
+  - model_name: gpt-4o-secured
+    litellm_params:
+      model: openai/openai/gpt-4o
+      api_base: os.environ/HIGHFLAME_GATEWAY_URL          # https://gateway.highflame.ai/v1
+      api_key: os.environ/OPENAI_API_KEY                  # forwarded by Firehog to OpenAI
+      extra_headers:
+        X-Highflame-APIKey: os.environ/HIGHFLAME_API_KEY  # tenant scope + policy enforcement
+
+  - model_name: claude-secured
+    litellm_params:
+      model: openai/anthropic/claude-opus-4-8
+      api_base: os.environ/HIGHFLAME_GATEWAY_URL
+      api_key: os.environ/ANTHROPIC_API_KEY
+      extra_headers:
+        X-Highflame-APIKey: os.environ/HIGHFLAME_API_KEY
+
+# Your other, non-secured providers keep working untouched — Highflame is just
+# one more entry in the list. Route only what you want secured through it.

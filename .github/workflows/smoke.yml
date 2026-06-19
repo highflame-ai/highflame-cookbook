@@ -1,0 +1,40 @@
+name: smoke
+
+# Runs every recipe's smoke_test.py — on change and nightly — so a recipe that
+# breaks against live prod turns this build red instead of rotting in a doc.
+# The scripts exit early (green) when their keys are absent, so this stays
+# green until the canary secrets below are configured in repo settings:
+#   HIGHFLAME_API_KEY, OPENAI_API_KEY, ANTHROPIC_API_KEY
+on:
+  push:
+  pull_request:
+  schedule:
+    - cron: "0 13 * * *" # 13:00 UTC nightly, against the canary tenant
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Run every recipe's smoke test
+        env:
+          HIGHFLAME_API_KEY: ${{ secrets.HIGHFLAME_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          set -euo pipefail
+          for d in recipes/*/; do
+            if [ ! -f "${d}smoke_test.py" ]; then
+              continue
+            fi
+            echo "::group::smoke ${d}"
+            if [ -f "${d}requirements.txt" ]; then
+              pip install -q -r "${d}requirements.txt"
+            fi
+            python "${d}smoke_test.py"
+            echo "::endgroup::"
+          done

@@ -1,0 +1,22 @@
+# mode_b_litellm_proxy_config.yaml
+#
+# Mode B — LiteLLM keeps calling every provider directly; Highflame Shield is
+# consulted as a guardrail HOOK (pre/post), not in the routing path. Contrast
+# with mode_a_litellm_proxy_config.yaml, where Firehog is an upstream provider.
+# See README → "Mode B — Shield as a LiteLLM guardrail hook".
+#
+# Start it with:  litellm --config mode_b_litellm_proxy_config.yaml
+
+model_list:
+  - model_name: gpt-4o
+    litellm_params:
+      model: openai/gpt-4o
+      api_key: os.environ/OPENAI_API_KEY
+
+guardrails:
+  - guardrail_name: highflame
+    litellm_params:
+      # The class lives in mode_b_shield_guardrail.py (HighflameGuardrail);
+      # it mints/refreshes the Shield JWT from HIGHFLAME_API_KEY via the SDK.
+      guardrail: mode_b_shield_guardrail.HighflameGuardrail
+      mode: [pre_call, post_call] # enforce on the prompt and on the response
