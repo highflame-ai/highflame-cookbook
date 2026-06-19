@@ -28,22 +28,22 @@ jobs:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
           set -uo pipefail
+          # Recipes nest at varying depths (e.g. recipes/aperture/01-block-secrets/),
+          # so discover smoke tests at any depth rather than a single level.
           failed=0
-          for d in recipes/*/; do
-            if [ ! -f "${d}smoke_test.py" ]; then
-              continue
-            fi
+          while IFS= read -r f; do
+            d="$(dirname "$f")/"
             echo "::group::smoke ${d}"
             if [ -f "${d}requirements.txt" ]; then
               pip install -q -r "${d}requirements.txt"
             fi
             rc=0
-            python "${d}smoke_test.py" || rc=$?
+            python "$f" || rc=$?
             echo "::endgroup::"
             case "$rc" in
               0) echo "::notice::passed ${d}" ;;
               2) echo "::notice::skipped ${d} — smoke test reported missing credentials" ;;
               *) echo "::error::smoke FAILED for ${d} (exit ${rc})"; failed=1 ;;
             esac
-          done
+          done < <(find recipes -name smoke_test.py | sort)
           exit "$failed"
