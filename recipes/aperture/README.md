@@ -21,13 +21,14 @@ Coding agent ──▶ Tailscale Aperture ──guardrail──▶ Highflame ─
 > "Acme CRM" service with realistic (planted, fake) secrets and PII — in your agent and
 > watch Highflame catch each issue in the natural flow of work.
 
-> **▶ Running the demo, or recording the video?** Follow the
-> **[live-demo runbook](live-demo.md)** — the full one-time setup (Aperture + Claude Code +
-> Studio) plus the 3-minute walkthrough.
-
 ---
 
 ## One-time setup
+
+> **First time through?** The **[live-demo runbook](live-demo.md)** is the complete
+> step-by-step — enable Aperture, add a provider, point Claude Code at it, turn on the
+> Studio policies, then the walkthrough. The quick reference below assumes Aperture is
+> already running.
 
 Highflame has a built-in Tailscale Aperture integration in [Studio](https://studio.highflame.ai/). Full steps:
 [docs.highflame.ai/integrations/tailscale](https://docs.highflame.ai/integrations/tailscale/setup-guide).
