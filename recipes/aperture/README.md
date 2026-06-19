@@ -138,5 +138,6 @@ customer already runs their agents.
 - **Prod by default** (`api.highflame.ai`).
 - **Each recipe has a `smoke_test.py`** that POSTs a real Aperture `pre_request` payload to
   Cerberus and asserts the decision.
-- **CI note:** [`smoke.yml`](../../.github/workflows/smoke.yml) globs `recipes/*/smoke_test.py`
-  (one level); these nest under `recipes/aperture/*/`, so widen it to `recipes/**/smoke_test.py`.
+- **CI note:** [`smoke.yml`](../../.github/workflows/smoke.yml) discovers smoke tests at any
+  depth (`find recipes -name smoke_test.py`), so nested recipes under `recipes/aperture/*/`
+  run in CI (exit 2 = skip when keys/tools are absent).

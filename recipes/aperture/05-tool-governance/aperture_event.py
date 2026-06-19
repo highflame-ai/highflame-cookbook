@@ -74,13 +74,18 @@ def post_event(payload: dict) -> dict:
     )
     try:
         with urllib.request.urlopen(req, timeout=30) as r:
-            return json.loads(r.read())
+            try:
+                return json.loads(r.read())
+            except json.JSONDecodeError:
+                return {"action": "error", "message": "invalid JSON response from server"}
     except urllib.error.HTTPError as e:
         body = e.read().decode()
         try:
             return json.loads(body)
         except json.JSONDecodeError:
             return {"action": "error", "status_code": e.code, "message": body}
+    except urllib.error.URLError as e:
+        return {"action": "error", "message": f"network error: {e.reason}"}
 
 
 def main() -> int:
