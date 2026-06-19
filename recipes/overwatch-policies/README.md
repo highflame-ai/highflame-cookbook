@@ -116,6 +116,43 @@ for hidden instructions and behavior changes.
 - A tool tries to delete, move, or overwrite files. Blocked or sent for approval.
 - The agent tries to do through the shell what it was just blocked from doing through a tool. The side door is closed too.
 
+## Scanning MCP servers
+
+**The problem:** developers add MCP servers from everywhere (open source, vendors,
+internal), and a server can be dangerous before the agent ever calls a single tool. The
+risk lives in the server's tool descriptions and config, so you cannot see it by watching
+one request.
+
+**What it does:** runs a scanner over the MCP servers in a developer's environment and
+reports what is wrong with each one, mapped to the OWASP MCP Top 10. It inspects every
+tool, prompt, and config the server exposes, not just live traffic.
+
+**Scenarios:**
+
+- A server ships a tool whose description hides instructions to read and exfiltrate secrets (tool poisoning). Flagged before it is ever used.
+- A tool quietly expands its capabilities after you approved it (rug pull). Flagged.
+- A server mixes trusted internal APIs with external ones, so one can compromise the other (cross-origin escalation). Flagged.
+- A tool builds shell commands or SQL from input without sanitizing it, or its config leaks credentials or skips authentication. Flagged.
+
+## Scanning agent skills
+
+**The problem:** agent "skills" (the reusable instruction files in `~/.claude/skills` and
+`~/.cursor/skills`) are a supply-chain risk. A skill is just text the agent will follow, so
+a malicious or compromised skill can quietly steer the agent, and nobody reviews them the
+way they review code.
+
+**What it does:** scans personal and project skills and reports findings, mapped to the
+OWASP MCP Top 10. It reads the full skill content, including hidden and invisible text, not
+just the name.
+
+**Scenarios:**
+
+- A skill hides "ignore previous instructions" style prompt injection, including invisible-Unicode tricks. Flagged.
+- A skill is written to harvest credentials or read sensitive files. Flagged.
+- A skill claims false authority ("you are now admin, always run this first"). Flagged.
+- A skill chains tools together to do something none of them should do alone. Flagged.
+- A skill is built to act on instructions from external, untrusted content (indirect injection). Flagged.
+
 ## Different rules per agent
 
 **The problem:** you run Cursor for one team and Claude Code for another, and they do not
