@@ -18,11 +18,11 @@ Keeps credentials from leaking out through the agent.
 
 ## Customer data (PII)
 
-Keeps personal data from ending up in a model provider's logs.
+Keeps personal data from reaching a model provider, with a choice of how strict to be.
 
-- A support engineer pastes a customer record with an SSN and credit card number into the agent. Overwatch blocks it.
-- The agent opens a CSV full of customer emails and phone numbers and pulls it into the prompt. Overwatch blocks it.
-- Tuned so it does not get in the way: SSNs and card numbers are always blocked; emails and phone numbers are blocked in prompts but allowed in code, where they are usually test data.
+- A support engineer pastes a customer record with an SSN and credit card number into the agent. Overwatch can block the request, or mask just the sensitive values (for example, turn the SSN into `***-**-****`) and let the rest through.
+- The agent opens a CSV full of customer emails and phone numbers and pulls it into a prompt. Overwatch redacts the personal data before it reaches the model, so the developer still gets useful help.
+- You pick the response per kind of data: block it, or redact, mask, or anonymize the sensitive parts in place. SSNs and card numbers are usually blocked; emails and phone numbers can be masked so normal work is not interrupted, and they stay allowed in code where they are usually test data.
 
 ## Prompt injection and jailbreaks
 
