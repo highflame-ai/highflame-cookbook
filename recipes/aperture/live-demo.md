@@ -22,8 +22,10 @@ Highflame account, and Claude Code installed.
 
 ### 1. Turn on Aperture and add Anthropic
 
-Enable Aperture for your tailnet at **[aperture.tailscale.com](https://aperture.tailscale.com)**,
-then add Anthropic as a provider ([Tailscale: Set up Anthropic](https://tailscale.com/docs/aperture/how-to/use-anthropic)).
+If Aperture isn't running in your tailnet yet, follow Tailscale's
+**[Get started with Aperture](https://tailscale.com/docs/aperture/get-started)** guide — sign
+up at [aperture.tailscale.com](https://aperture.tailscale.com), then add Anthropic as a
+provider ([Set up Anthropic](https://tailscale.com/docs/aperture/how-to/use-anthropic)).
 In **Administration → Configuration**, the provider block looks like:
 
 ```json
