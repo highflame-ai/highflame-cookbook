@@ -36,7 +36,7 @@ ENDPOINT = os.environ.get(
 )
 API_KEY = os.environ.get("HIGHFLAME_API_KEY")
 
-# What a developer pastes from the demo-vault's deploy.sh. The credentials are AWS's own
+# What a developer pastes from the demo-app's src/config.js. The credentials are AWS's own
 # documented example values — they trip the secret detector without being real keys.
 LEAK = (
     "Help me debug this deploy script — it exports "

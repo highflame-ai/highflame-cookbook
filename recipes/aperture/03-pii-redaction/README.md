@@ -15,7 +15,7 @@ scrubbed prompt to the provider. The model answers usefully; it never received t
 > prompt inside `request_body` from Shield's `redacted_content`, and **fails safe to block**
 > if the body can't be rewritten, so un-scrubbed PII is never forwarded.
 
-**Stage:** [`highflame-demo-vault/contacts.json`](https://github.com/highflame-ai/highflame-demo-vault/blob/main/contacts.json) (planted fake leads).
+**Stage:** [`highflame-demo-app/data/customers.csv`](https://github.com/highflame-ai/highflame-demo-app/blob/main/data/customers.csv) (seed data with fake emails).
 
 ---
 

@@ -6,7 +6,7 @@ SSNs to a model provider. Stop it at the edge, with a message that says why."*
 **Integration:** Tailscale **Aperture** `pre_request` guardrail → Cerberus → Shield. Shield's
 `pii` detector flags the national ID → Cedar `forbid` with your `@reject_message` → `block`.
 
-**Stage:** [`highflame-demo-vault/customers.csv`](https://github.com/highflame-ai/highflame-demo-vault/blob/main/customers.csv) (planted fake SSNs).
+**Stage:** [`highflame-demo-app/data/customers.csv`](https://github.com/highflame-ai/highflame-demo-app/blob/main/data/customers.csv) (seed data with fake SSNs).
 
 ---
 

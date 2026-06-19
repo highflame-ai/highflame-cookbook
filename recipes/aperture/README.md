@@ -17,10 +17,11 @@ Agent (Claude Code, …) ──▶ Tailscale Aperture ──pre_request guardrai
                                  └──◀──── {"action":"block","message":"Highflame Security …"} ◀────┘
 ```
 
-> **Two-repo demo.** This folder is the *guide*; the *stage* is a separate, deliberately
-> insecure repo — [`highflame-demo-vault`](https://github.com/highflame-ai/highflame-demo-vault) —
-> full of planted (fake) secrets, PII, and injection payloads. Wire up Aperture once,
-> open the vault in your agent, reproduce every scenario.
+> **Two-repo demo.** This folder is the *guide*; the *stage* is a small, deliberately
+> insecure app — [`highflame-demo-app`](https://github.com/highflame-ai/highflame-demo-app)
+> (an "Acme CRM" service) whose realistic files carry planted (fake) secrets, PII, and an
+> injection payload. Wire up Aperture once, open the app in your agent, reproduce every
+> scenario in the natural flow of dev work.
 
 ---
 

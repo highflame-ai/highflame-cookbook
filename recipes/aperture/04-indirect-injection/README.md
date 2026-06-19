@@ -14,7 +14,7 @@ LLM request after the agent reads it; Aperture inspects that request and Shield'
 > indirect injection becomes visible. (Aperture does *not* intercept the outbound tool call
 > itself; it catches the smuggled instruction when it re-enters the model request.)
 
-**Stage:** [`highflame-demo-vault/docs/integration.md`](https://github.com/highflame-ai/highflame-demo-vault/blob/main/docs/integration.md) (hidden `<!-- SYSTEM OVERRIDE … -->` payload).
+**Stage:** [`highflame-demo-app/docs/integrations.md`](https://github.com/highflame-ai/highflame-demo-app/blob/main/docs/integrations.md) (hidden `<!-- SYSTEM OVERRIDE … -->` payload).
 
 ---
 

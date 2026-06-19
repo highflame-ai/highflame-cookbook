@@ -10,7 +10,7 @@ on the `pre_request` hook ([cerberus#96](https://github.com/highflame-ai/highfla
 so a dangerous command in the agent's history is caught at the LLM boundary: Shield's
 **bash AST classifier** flags the `curl | sh` (network + execute) → `block`.
 
-**Stage:** [`highflame-demo-vault/scripts/bootstrap.sh`](https://github.com/highflame-ai/highflame-demo-vault/blob/main/scripts/bootstrap.sh) (`curl … | sh`).
+**Stage:** [`highflame-demo-app/scripts/setup.sh`](https://github.com/highflame-ai/highflame-demo-app/blob/main/scripts/setup.sh) (`curl … | sh`).
 
 > **Two boundaries — read this.** Per [Aperture's guardrail docs](https://tailscale.com/docs/aperture/guardrails),
 > guardrails fire at the **LLM request** boundary, **not** on the live outbound MCP/tool call.

@@ -13,7 +13,7 @@ violated Enterprise Policy"}` — Aperture surfaces that to the developer in Cla
 **What fires:** Shield's `secrets` detector (16+ credential types) flags the AWS key → a
 Cedar `forbid` with your `@reject_message` → `deny` → Cerberus `block`.
 
-**Stage:** [`highflame-demo-vault/deploy.sh`](https://github.com/highflame-ai/highflame-demo-vault/blob/main/deploy.sh) (planted AWS example keys).
+**Stage:** [`highflame-demo-app/src/config.js`](https://github.com/highflame-ai/highflame-demo-app/blob/main/src/config.js) (hardcoded AWS example-key fallback).
 
 ---
 
