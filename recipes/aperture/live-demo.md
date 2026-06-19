@@ -143,27 +143,8 @@ Then **flip to Highflame Studio → Code Agents**: every one of those is recorde
 to *you* (your tailnet login), with the policy that fired. That's the per-developer identity
 story — *"we don't just block it; we know who, on which device."*
 
-> **Most reliable live:** scenarios 1–4 fire on the prompt itself and are rock-solid.
-> Scenario 5 depends on the agent surfacing the command in its request; if you're recording,
-> lead with 1–4 and treat 5 as a bonus.
-
----
-
-## Part 3 · Recording the video
-
-Aim for **2–3 minutes**:
-
-1. **0:00–0:20 — Setup shot.** Claude Code open in the demo app; one line: *"a normal app, a
-   developer using Claude Code — behind Tailscale Aperture, with Highflame watching."*
-2. **0:20–2:00 — The catches.** Scenarios 1–4, one after another. Let the Highflame message
-   land on screen each time; one sentence of narration per catch.
-3. **2:00–2:40 — The identity reveal.** Flip to Studio → Code Agents; show the events
-   attributed to the developer. *"Every decision, tied to a real person on a real device."*
-4. **2:40–3:00 — Close.** *"No code changes, no new proxy — Aperture was already in the path.
-   Highflame just plugged in."*
-
-Record at 1080p+, hide any tenant names you don't want public, and consider a separate
-~25-second clip per scenario for slide decks.
+> **Lead with scenarios 1–4** — they fire on the prompt itself and are rock-solid. Scenario 5
+> depends on the agent surfacing the command in its request, so treat it as a bonus.
 
 ---
 

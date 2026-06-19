@@ -23,34 +23,16 @@ Coding agent ──▶ Tailscale Aperture ──guardrail──▶ Highflame ─
 
 ---
 
-## One-time setup
+## Set it up
 
-> **First time through?** The **[live-demo runbook](live-demo.md)** is the complete
-> step-by-step — enable Aperture, add a provider, point Claude Code at it, turn on the
-> Studio policies, then the walkthrough. The quick reference below assumes Aperture is
-> already running.
-
-Highflame has a built-in Tailscale Aperture integration in [Studio](https://studio.highflame.ai/). Full steps:
+→ Follow the **[live-demo runbook](live-demo.md)** for the complete step-by-step: enable
+Aperture, point Claude Code at it, generate your Highflame key and add the guardrail hook,
+and turn on the Studio policies. Reference:
 [docs.highflame.ai/integrations/tailscale](https://docs.highflame.ai/integrations/tailscale/setup-guide).
-The short version:
 
-1. **Studio → Code Agents → Getting Started → the *Tailscale Aperture* card → Generate API key.**
-2. In Aperture settings, add the Highflame hook and a synchronous pre-request check:
-   ```json
-   "hooks": {
-     "highflame": {
-       "url": "https://api.highflame.ai/v1/cerberus/agent/events",
-       "apikey": "<HIGHFLAME_API_KEY>",
-       "timeout": "30s",
-       "fail_policy": "fail_open"
-     }
-   },
-   "send_hooks": [
-     { "name": "highflame", "events": ["pre_request"], "send": ["user_message", "request_body", "tools"] }
-   ]
-   ```
-   Use `fail_closed` for guardrails where enforcement is mandatory (e.g. PII scrubbing for compliance).
-3. Turn on the policies you want in Studio — each recipe below has the exact click-path.
+---
+
+## How it works
 
 **You control the message.** What a developer sees on a block is the message you write on
 the policy in Studio.
@@ -87,9 +69,9 @@ cover the rest:
 
 ## The scenarios
 
-Each recipe is a one-time Studio setup plus a script you can run to see the decision. Open
-the [demo app](https://github.com/highflame-ai/highflame-demo-app) in your agent and try
-the matching prompt.
+Run these in the [live demo](live-demo.md): open the
+[demo app](https://github.com/highflame-ai/highflame-demo-app) in your agent and try the
+matching prompt. Each links to a recipe with the exact Studio policy behind it.
 
 **Data-loss prevention** — *"our secrets and PII can't leave, even by accident"*
 - [**01 · Block a credential / secret leak**](01-block-secrets/) — a pasted or hardcoded API key is blocked.
