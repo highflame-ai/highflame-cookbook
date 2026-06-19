@@ -140,11 +140,7 @@ Highflame catches the issue and Claude Code shows the message.
 | 5 | *"Run the project's setup script."* | **Blocked** — unauthorized shell (`curl … \| sh`). |
 
 Then **flip to Highflame Studio → Code Agents**: every one of those is recorded, attributed
-to *you* (your tailnet login), with the policy that fired. That's the per-developer identity
-story — *"we don't just block it; we know who, on which device."*
-
-> **Lead with scenarios 1–4** — they fire on the prompt itself and are rock-solid. Scenario 5
-> depends on the agent surfacing the command in its request, so treat it as a bonus.
+to *you* (your tailnet login), with the policy that fired.
 
 ---
 
@@ -161,7 +157,3 @@ story — *"we don't just block it; we know who, on which device."*
   your traffic matches.
 - More: [Highflame × Tailscale troubleshooting](https://docs.highflame.ai/integrations/tailscale/troubleshooting).
 
----
-
-This runbook is the script behind the demo video. The per-scenario recipes in this folder
-have the exact Studio click-path and policy detail for each catch.
