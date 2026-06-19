@@ -57,7 +57,7 @@ Every recipe follows the same shape, so a five-minute walkthrough looks the same
 1. **Set up once in Studio** — generate a key and turn on a policy (each recipe has the
    exact click-path, with screenshots).
 2. **Run the proof** — a short script sends a representative request and shows you
-   Highflame's decision: **allow**, **block** (with your branded message), or **redact**.
+   Highflame's decision: **allow**, **block** (with the message you set in Studio), or **redact**.
 
 ```bash
 cd recipes/<recipe>

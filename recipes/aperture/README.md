@@ -4,8 +4,8 @@ Your developers run coding agents — **Claude Code**, Cursor, Codex, Gemini CLI
 your tailnet, behind **[Tailscale Aperture](https://tailscale.com/docs/aperture)**, the AI
 gateway that routes their LLM traffic with Tailscale identity attached. **Highflame plugs
 into Aperture as a guardrail:** every prompt and tool call is checked *before* it reaches
-the model provider, with the developer's identity on it. When a policy fires, Aperture
-shows the developer a **clearly branded Highflame message** — not a generic error.
+the model provider, with the developer's identity on it. When a policy fires, the developer
+sees a clear **Highflame Security** message — the one you wrote in Studio, not a generic error.
 
 One setup secures every Aperture-routed agent — Claude Code, Codex, Cline, Gemini CLI,
 Roo Code.
@@ -13,7 +13,7 @@ Roo Code.
 ```
 Coding agent ──▶ Tailscale Aperture ──guardrail──▶ Highflame ──▶ allow · block · redact
                        │                                              (+ branded message)
-                       └──◀──── "Highflame Security has blocked…" ◀───┘
+                       └──◀──── "Highflame Security has blocked…" (your message) ◀───┘
 ```
 
 > **Try it end to end.** Open the companion app —
@@ -62,7 +62,7 @@ A Highflame check returns one of three outcomes, which Aperture applies:
 | Outcome | What happens |
 | --- | --- |
 | **Allow** | the request continues unchanged |
-| **Block** | the request is rejected with your branded message; it never reaches the model |
+| **Block** | the request is rejected with the message you set in Studio; it never reaches the model |
 | **Redact** | Highflame returns a scrubbed request (e.g. PII masked) and Aperture forwards that instead |
 
 ### What it sees — and where to govern the rest

@@ -4,8 +4,9 @@
 hardcoded API key in a prompt is a breach. We want it stopped at the network edge — with
 our identity on it — before it ever reaches a model provider."*
 
-When a request carries a credential, Highflame blocks it and Aperture shows the developer
-your branded message in Claude Code:
+When a request carries a credential, Highflame blocks it. The developer sees the block
+message you wrote in Studio — a clear *Highflame Security* notice in Claude Code, not a
+generic error:
 
 ```json
 { "action": "block", "message": "Highflame Security has blocked your prompt because it violated Enterprise Policy" }
@@ -55,7 +56,8 @@ python aperture_event.py
 }
 ```
 
-That message is what Aperture relays into Claude Code — branded and specific, not a generic error.
+That message — the one you wrote on the policy in Studio — is what Aperture relays into
+Claude Code: clearly Highflame Security, and specific, not a generic error.
 
 ## Verify
 

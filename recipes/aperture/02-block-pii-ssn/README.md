@@ -3,8 +3,8 @@
 **The value:** *"A developer summarizing a customer export shouldn't be able to ship SSNs
 to a model provider. Stop it at the edge, with a message that says why."*
 
-Highflame detects national IDs and blocks the request with your branded message before it
-reaches the provider.
+Highflame detects national IDs and blocks the request — with the message you set in Studio
+— before it reaches the provider.
 
 **Try it in the demo app:** ask the agent to *"add an endpoint that exports all customers
 as CSV"* — it pulls
