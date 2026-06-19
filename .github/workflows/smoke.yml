@@ -2,8 +2,9 @@ name: smoke
 
 # Runs every recipe's smoke_test.py — on change and nightly — so a recipe that
 # breaks against live prod turns this build red instead of rotting in a doc.
-# The scripts exit early (green) when their keys are absent, so this stays
-# green until the canary secrets below are configured in repo settings:
+# Per-recipe contract (see each smoke_test.py): exit 0 = pass, 1 = failed,
+# 2 = skipped (missing creds). Only a real failure reds the build, so this stays
+# green until the canary secrets below are set in repo settings:
 #   HIGHFLAME_API_KEY, OPENAI_API_KEY, ANTHROPIC_API_KEY
 on:
   push:
@@ -26,7 +27,8 @@ jobs:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
-          set -euo pipefail
+          set -uo pipefail
+          failed=0
           for d in recipes/*/; do
             if [ ! -f "${d}smoke_test.py" ]; then
               continue
@@ -35,6 +37,13 @@ jobs:
             if [ -f "${d}requirements.txt" ]; then
               pip install -q -r "${d}requirements.txt"
             fi
-            python "${d}smoke_test.py"
+            rc=0
+            python "${d}smoke_test.py" || rc=$?
             echo "::endgroup::"
+            case "$rc" in
+              0) echo "::notice::passed ${d}" ;;
+              2) echo "::notice::skipped ${d} — smoke test reported missing credentials" ;;
+              *) echo "::error::smoke FAILED for ${d} (exit ${rc})"; failed=1 ;;
+            esac
           done
+          exit "$failed"
