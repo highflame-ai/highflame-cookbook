@@ -1,43 +1,37 @@
 # 05 · Govern dangerous tools & shell
 
-**Customer value:** *"Our agents run shell commands and call tools. A `curl | sh` from a
-sketchy source, or an agent reaching for a destructive command, should be stopped — and we
-want to know which tools our agents even use."*
+**The value:** *"Our agents run shell commands and call tools. A `curl | sh` from a sketchy
+source, or an agent reaching for a destructive command, should be stopped — and we want to
+know which tools our agents even use."*
 
-**Integration:** Aperture-routed agents (Codex and others) re-send their conversation —
-including prior tool calls — each turn. **Cerberus evaluates those tool calls synchronously**
-on the `pre_request` hook ([cerberus#96](https://github.com/highflame-ai/highflame-cerberus/pull/96)),
-so a dangerous command in the agent's history is caught at the LLM boundary: Shield's
-**bash AST classifier** flags the `curl | sh` (network + execute) → `block`.
+Coding agents resend their conversation — including prior tool calls — on each turn.
+Highflame evaluates those tool calls before the model's next step, so a dangerous command in
+the agent's history is caught and blocked.
 
-**Stage:** [`highflame-demo-app/scripts/setup.sh`](https://github.com/highflame-ai/highflame-demo-app/blob/main/scripts/setup.sh) (`curl … | sh`).
+**Try it in the demo app:** ask the agent to *"run the project's setup script
+([`scripts/setup.sh`](https://github.com/highflame-ai/highflame-demo-app/blob/main/scripts/setup.sh))"* —
+the `curl … | sh` is blocked.
 
-> **Two boundaries — read this.** Per [Aperture's guardrail docs](https://tailscale.com/docs/aperture/guardrails),
-> guardrails fire at the **LLM request** boundary, **not** on the live outbound MCP/tool call.
-> So two complementary controls:
-> - **What this recipe shows:** dangerous tool calls *in the resent request* are blocked, and
->   Aperture `modify` can **strip risky tool declarations** from the `tools` array before the
->   model sees them.
-> - **For execution-time gating** of the actual call, use **MCP grants** (limit which tools
->   Aperture exposes) or the **native IDE hook** (Overwatch `PreToolUse`). Don't rely on the
->   guardrail to police the outbound call itself.
+> **Where governance lives.** The guardrail acts at the model-request boundary: it blocks a
+> dangerous command *in the request* and can strip risky tool declarations before the model
+> sees them. To gate the actual tool *execution*, pair this with MCP grants (limit which
+> tools are exposed) or Highflame's native IDE integration.
 
 ---
 
-## Track A — author the policy in Studio
+## Set up the policy in Studio
 
-1. **Studio → Code Agents → Tailscale Aperture** (one-time hook setup — see [the track README](../README.md#one-time-setup)).
-2. **Policies → New Policy → Guardrail.** Trigger: detector `bash_ast_classifier` operation
-   classes — forbid when `network_access` AND `execute_enabling` co-occur (the `curl | sh`
-   shape), or use `tool_risk` for sensitive-tool + dangerous-arg patterns.
-   ![Shell operation classes](img/01-trigger-shell.png)
-3. **Action:** `forbid`. **Mode:** `enforce`.
-   `@reject_message("Highflame Security has detected unauthorized shell access.")`
-4. Save & activate, scoped to your account/project.
+1. **Studio → Code Agents → Tailscale Aperture** (one-time hook setup — see [the track setup](../README.md#one-time-setup)).
+2. **Policies → New Policy → Guardrail.** Trigger on **shell-command risk** — block when a
+   command both reaches the network and executes code (the `curl | sh` shape), or on a high
+   tool-risk score; action **block**; mode **enforce**; custom message — *"Highflame
+   Security has detected unauthorized shell access."*
+   ![Shell governance policy](img/01-trigger-shell.png)
+3. Save & activate.
 
 ---
 
-## Track B — see the decision
+## See the decision
 
 ```bash
 cp .env.example .env        # set HIGHFLAME_API_KEY (the Aperture service key)
@@ -53,24 +47,21 @@ python aperture_event.py
 }
 ```
 
----
-
-## Verify against prod
+## Verify
 
 ```bash
 python smoke_test.py
 ```
 
-Asserts the dangerous tool call is blocked.
+Confirms the dangerous tool call is blocked.
 
 ---
 
-## Notes & honesty
+## Notes
 
-- **Tool-call capture covers agents that resend tool history** (Codex `input`, etc.). The
-  payload here uses that shape. Coverage for additional agent transcript formats expands over
-  time.
+- Applies to agents that resend tool history in their requests (Codex and others). To govern
+  live tool execution for any agent, use MCP grants or Highflame's native IDE integration.
 - **Discovery is half the value:** even in monitor mode, every tool call flows into Studio →
-  Code Agents, giving you an inventory of which tools/commands your agents actually run before
-  you write a single blocking policy.
-- The command targets `evil.example` (reserved, non-routable).
+  Code Agents, giving you an inventory of which tools and commands your agents actually run
+  before you write a single blocking policy.
+- The command targets `evil.example`, reserved and non-routable.

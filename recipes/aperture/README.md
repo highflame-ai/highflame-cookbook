@@ -1,37 +1,36 @@
 # Highflame + Tailscale Aperture
 
-[Tailscale **Aperture**](https://tailscale.com/docs/aperture) is the AI gateway that routes
-your tailnet's LLM traffic with Tailscale's identity layer attached. **Highflame plugs into
-Aperture as a `pre_request` guardrail** → Cerberus → Shield: every prompt and tool
-declaration is evaluated *before* it reaches the model provider, with the developer's
-identity on it. On a policy hit, Aperture relays a **clearly branded Highflame message** —
-not a generic error.
+Your developers run coding agents — **Claude Code**, Cursor, Codex, Gemini CLI — inside
+your tailnet, behind **[Tailscale Aperture](https://tailscale.com/docs/aperture)**, the AI
+gateway that routes their LLM traffic with Tailscale identity attached. **Highflame plugs
+into Aperture as a guardrail:** every prompt and tool call is checked *before* it reaches
+the model provider, with the developer's identity on it. When a policy fires, Aperture
+shows the developer a **clearly branded Highflame message** — not a generic error.
 
-This integration is **agent-agnostic**: it covers every Aperture-routed coding agent —
-`aperture_claude` (Claude Code), `aperture_codex`, `aperture_cline`, `aperture_gemini_cli`,
-`aperture_roo_code`. The demo drives **Claude Code**, but the same recipes secure all of them.
+One setup secures every Aperture-routed agent — Claude Code, Codex, Cline, Gemini CLI,
+Roo Code.
 
 ```
-Agent (Claude Code, …) ──▶ Tailscale Aperture ──pre_request guardrail──▶ Highflame Cerberus ──▶ Shield
-                                 │                                     allow / block / modify (+message)
-                                 └──◀──── {"action":"block","message":"Highflame Security …"} ◀────┘
+Coding agent ──▶ Tailscale Aperture ──guardrail──▶ Highflame ──▶ allow · block · redact
+                       │                                              (+ branded message)
+                       └──◀──── "Highflame Security has blocked…" ◀───┘
 ```
 
-> **Two-repo demo.** This folder is the *guide*; the *stage* is a small, deliberately
-> insecure app — [`highflame-demo-app`](https://github.com/highflame-ai/highflame-demo-app)
-> (an "Acme CRM" service) whose realistic files carry planted (fake) secrets, PII, and an
-> injection payload. Wire up Aperture once, open the app in your agent, reproduce every
-> scenario in the natural flow of dev work.
+> **Try it end to end.** Open the companion app —
+> [`highflame-demo-app`](https://github.com/highflame-ai/highflame-demo-app), a small
+> "Acme CRM" service with realistic (planted, fake) secrets and PII — in your agent and
+> watch Highflame catch each issue in the natural flow of work.
 
 ---
 
 ## One-time setup
 
-Highflame has a first-class **Tailscale Aperture** integration in Studio → **Code Agents**.
-Full steps: [docs.highflame.ai/integrations/tailscale](https://docs.highflame.ai/integrations/tailscale/setup-guide).
+Highflame has a built-in Tailscale Aperture integration in Studio. Full steps:
+[docs.highflame.ai/integrations/tailscale](https://docs.highflame.ai/integrations/tailscale/setup-guide).
+The short version:
 
-1. **Studio → Code Agents → Getting Started → *Tailscale Aperture* card → Generate API key.**
-2. In Aperture settings, add the hook + a sync `pre_request` grant:
+1. **Studio → Code Agents → Getting Started → the *Tailscale Aperture* card → Generate API key.**
+2. In Aperture settings, add the Highflame hook and a synchronous pre-request check:
    ```json
    "hooks": {
      "highflame": {
@@ -45,100 +44,79 @@ Full steps: [docs.highflame.ai/integrations/tailscale](https://docs.highflame.ai
      { "name": "highflame", "events": ["pre_request"], "send": ["user_message", "request_body", "tools"] }
    ]
    ```
-   Use `fail_closed` instead for guardrails where enforcement is mandatory (e.g. PII
-   scrubbing for compliance) — per Aperture's guardrail failure-behavior guidance.
-3. Author your Shield policies in Studio (each recipe has the exact click-path). The
-   branded wording comes from the policy's `@reject_message`.
+   Use `fail_closed` for guardrails where enforcement is mandatory (e.g. PII scrubbing for compliance).
+3. Turn on the policies you want in Studio — each recipe below has the exact click-path.
 
-**The three Aperture actions** (a `pre_request` guardrail returns one):
+**You control the message.** What a developer sees on a block is the message you write on
+the policy in Studio.
 
-| Action | Effect | Highflame use |
-| --- | --- | --- |
-| `allow` | request proceeds unchanged | nothing to act on |
-| `block` | Aperture rejects; client sees status + message | secrets, SSN, injection — hard enforcement |
-| `modify` | Aperture forwards a **replacement request body** | **scrub/redact PII**, strip tool declarations |
+**Identity on every request — the Tailscale-native advantage.** Every decision carries the
+developer's login and tailnet, so a block is attributed to a real person on a real device,
+visible in Studio → Code Agents. That's the per-developer accountability authentication
+alone can't give you.
 
-Guardrails **chain**: `modify` rewrites in place and the next guardrail sees the new body;
-`block` terminates the chain.
+### What the guardrail does
 
-**Why this route for a Tailscale shop.** No base-URL swap, no extra proxy — Aperture is
-*already* in the path. Every decision carries `login_name` + `tailnet_name`: **per-developer
-identity on every AI request**, visible in Studio → Code Agents. That's the story auth alone
-can't tell.
+A Highflame check returns one of three outcomes, which Aperture applies:
 
-> **Two real boundaries to know** (from Aperture's guardrail docs):
-> - **Pre-request only.** Aperture guardrails inspect the *request* to the provider; there
->   are **no post-response guardrails** — filtering the model's *output* is a gateway
->   (Firehog) / native-hook capability, not Aperture.
-> - **LLM boundary, not the tool boundary.** Guardrails fire on the LLM request (including
->   its `tools` array) but **not on the outbound MCP/tool call** the model later triggers.
->   To govern *tool execution*, use **MCP grants** or the **native IDE hook** (Overwatch),
->   not the Aperture guardrail.
+| Outcome | What happens |
+| --- | --- |
+| **Allow** | the request continues unchanged |
+| **Block** | the request is rejected with your branded message; it never reaches the model |
+| **Redact** | Highflame returns a scrubbed request (e.g. PII masked) and Aperture forwards that instead |
 
----
+### What it sees — and where to govern the rest
 
-## The scenario gallery
+The Aperture guardrail runs at the **model-request** boundary: it inspects the prompt and
+the tools a request declares, just before the provider call. Two complementary surfaces
+cover the rest:
 
-Each row is one recipe folder (Studio click-path **+** a runnable, CI-asserted Aperture
-`pre_request` proof) and one planted vault file. Each sells a distinct piece of value.
-
-### 1 · Data-loss prevention — *"our secrets & PII can't leave, even by accident"*
-
-| # | Scenario | Aperture action | Status |
-| --- | --- | --- | --- |
-| 01 | [Block credential / secret leak](01-block-secrets/) | `block` + branded | ✅ ready |
-| 02 | [Block PII — SSN / national ID](02-block-pii-ssn/) | `block` + branded | ✅ ready |
-| 03 | [Redact / scrub PII — email, phone](03-pii-redaction/) | `modify` (transparent scrub) | ✅ ready (Cerberus `modify` shipped) |
-| — | Source-code / IP egress · PHI (HIPAA) | `block` / `modify` | 📋 library |
-
-### 2 · Prompt & agent attack defense — *"agents get attacked through their inputs"*
-
-| # | Scenario | Aperture action | Status |
-| --- | --- | --- | --- |
-| 04 | [Indirect prompt injection](04-indirect-injection/) — poisoned tool output re-enters the next LLM request | `block` + branded | ✅ ready |
-| — | Direct injection / jailbreak · multi-turn slow-burn | `block` | 📋 / 🔬 |
-
-### 3 · Agentic action governance — *"agents *do* things — govern the actions"*
-
-| # | Scenario | Surface | Status |
-| --- | --- | --- | --- |
-| 05 | [Govern dangerous tools / shell](05-tool-governance/) — resent tool calls blocked at the LLM boundary; `modify` strips tool declarations; execution-time = MCP grants / native hook | `block` + native | ✅ ready |
-| — | Data-exfil kill-chain · runaway loop / budget | mixed | 📋 library |
-
-### 4 · Supply-chain integrity (pre-runtime) — *"vet what you plug in"*
-
-| # | Scenario | Surface | Status |
-| --- | --- | --- | --- |
-| 06 | [MCP server scan + SKILL scan](06-mcp-skill-scan/) | Overwatch / ramparts CLI | ✅ ready |
-
-### 5 · Identity-scoped authz (Tailscale's wheelhouse) · 6 · Content safety · 7 · Proof
-
-| # | Scenario | Surface | Status |
-| --- | --- | --- | --- |
-| — | Per-developer / per-node identity on every decision | attributed `allow`/`block` | 📋 library |
-| — | Per-agent-source policy (`aperture_claude` vs `aperture_codex`) | scoped | 📋 library |
-| — | Toxicity / phishing-URL / hallucination | `block` | 📋 library |
-| — | Async `entire_request` observability (tool calls, cost, sessions) → Studio + Observatory | observe-only | 📋 library |
-
-**Legend:** ✅ ready · 🚧 building (Tier-1) · 🛠️ needs a scoped platform change · 🔬 maturing ·
-📋 library (one planted file + one folder).
+- **Model output** (the provider's response) is governed on Highflame's gateway and
+  native IDE-hook integrations.
+- **Live tool execution** (the actual shell or MCP call an agent runs) is governed with
+  MCP grants or Highflame's native IDE integration. The pre-request guardrail still catches
+  a dangerous command *in the request* and can strip risky tool declarations before the
+  model sees them.
 
 ---
 
-## Where other integrations go
+## The scenarios
 
-This `aperture/` folder is **one integration**. The cookbook holds others as siblings —
-[`litellm/`](../litellm/) ships today; native IDE hooks (Overwatch), Firehog gateway,
-Portkey, and MCP-gateway are their own folders. Pick the integration that matches how the
-customer already runs their agents.
+Each recipe is a one-time Studio setup plus a script you can run to see the decision. Open
+the [demo app](https://github.com/highflame-ai/highflame-demo-app) in your agent and try
+the matching prompt.
 
-## Conventions
+**Data-loss prevention** — *"our secrets and PII can't leave, even by accident"*
+- [**01 · Block a credential / secret leak**](01-block-secrets/) — a pasted or hardcoded API key is blocked.
+- [**02 · Block PII (SSN / national ID)**](02-block-pii-ssn/) — national IDs never reach the provider.
+- [**03 · Redact PII (email, phone)**](03-pii-redaction/) — the address is scrubbed; the developer stays productive.
 
-- **Env-only secrets**; each recipe ships `.env.example`. The key is the **Aperture service
-  key** from Studio → Code Agents → Tailscale Aperture.
-- **Prod by default** (`api.highflame.ai`).
-- **Each recipe has a `smoke_test.py`** that POSTs a real Aperture `pre_request` payload to
-  Cerberus and asserts the decision.
-- **CI note:** [`smoke.yml`](../../.github/workflows/smoke.yml) discovers smoke tests at any
-  depth (`find recipes -name smoke_test.py`), so nested recipes under `recipes/aperture/*/`
-  run in CI (exit 2 = skip when keys/tools are absent).
+**Prompt & agent attack defense** — *"agents get attacked through their inputs"*
+- [**04 · Block indirect prompt injection**](04-indirect-injection/) — a hidden instruction in a doc or tool result is caught.
+
+**Agentic action governance** — *"agents *do* things — govern the actions"*
+- [**05 · Govern dangerous tools & shell**](05-tool-governance/) — a `curl … | sh` in an agent's tool history is blocked.
+
+**Supply-chain integrity** — *"vet what you plug in"*
+- [**06 · MCP server scan + SKILL scan**](06-mcp-skill-scan/) — scan MCP servers and agent skills for poisoning before they're used.
+
+Each scenario maps to a planted issue in the demo app. Want a scenario that isn't here —
+toxicity, phishing-URL detection, hallucination, per-agent identity policy? They're all
+supported; ask your Highflame contact and we'll add the recipe.
+
+---
+
+## Good to know
+
+- **The key** is the Aperture service key from Studio → Code Agents → Tailscale Aperture.
+- **Monitor first, then enforce.** A policy in monitor mode records what it *would* have
+  done while still letting traffic through; switch it to enforce when you're ready — no
+  Aperture change needed.
+- **Run it yourself.** Each recipe ships a short script that sends a representative request
+  to Highflame and prints the decision, so you can confirm the setup without standing up a
+  tailnet.
+
+## Other integrations
+
+This `aperture/` folder is one integration. The cookbook also has [`litellm/`](../litellm/),
+with more on the way — pick the one that matches how your team already runs agents.

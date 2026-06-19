@@ -1,61 +1,45 @@
-# 01 · Block a credential leak — Claude Code behind Tailscale Aperture
+# 01 · Block a credential leak
 
-**Customer value:** *"Our developers are productive with Claude Code, but one pasted AWS
-key in a prompt is a breach. We want that stopped at the network edge, with our identity
-on it, before it ever reaches a model provider."*
+**The value:** *"Our developers are productive with Claude Code, but one pasted or
+hardcoded API key in a prompt is a breach. We want it stopped at the network edge — with
+our identity on it — before it ever reaches a model provider."*
 
-**Integration:** [Tailscale **Aperture**](https://tailscale.com/docs/aperture) routes the
-tailnet's LLM traffic. Highflame plugs in as an Aperture **`pre_request` hook** → Cerberus
-→ Shield. On a secret, Shield denies and Cerberus returns
-`{"action":"block","message":"Highflame Security has blocked your prompt because it
-violated Enterprise Policy"}` — Aperture surfaces that to the developer in Claude Code.
+When a request carries a credential, Highflame blocks it and Aperture shows the developer
+your branded message in Claude Code:
 
-**What fires:** Shield's `secrets` detector (16+ credential types) flags the AWS key → a
-Cedar `forbid` with your `@reject_message` → `deny` → Cerberus `block`.
+```json
+{ "action": "block", "message": "Highflame Security has blocked your prompt because it violated Enterprise Policy" }
+```
 
-**Stage:** [`highflame-demo-app/src/config.js`](https://github.com/highflame-ai/highflame-demo-app/blob/main/src/config.js) (hardcoded AWS example-key fallback).
+Highflame recognizes 16+ credential types (AWS, GitHub, Stripe, and more).
+
+**Try it in the demo app:** ask the agent *"why is the S3 upload failing? check
+[`src/config.js`](https://github.com/highflame-ai/highflame-demo-app/blob/main/src/config.js)"* —
+the hardcoded AWS key never reaches the model.
 
 ---
 
-## Track A — wire it up in Studio (the admin's path)
+## Set up the policy in Studio
 
-This is the [Tailscale Aperture setup](https://docs.highflame.ai/integrations/tailscale/setup-guide),
-condensed:
-
-1. **Studio → Code Agents → Getting Started → click the *Tailscale Aperture* card → Generate API key.**
+1. **Studio → Code Agents → Getting Started → the *Tailscale Aperture* card → Generate API
+   key**, and add the hook in Aperture (one-time — see [the track setup](../README.md#one-time-setup)).
    ![Tailscale Aperture card](img/01-aperture-card.png)
-2. In **Aperture settings** (`http://ai/ui/`), add the Highflame hook:
-   ```json
-   "hooks": {
-     "highflame": {
-       "url": "https://api.highflame.ai/v1/cerberus/agent/events",
-       "apikey": "<HIGHFLAME_API_KEY>",
-       "timeout": "30s",
-       "fail_policy": "fail_open"
-     }
-   }
-   ```
-3. Add a **sync `pre_request`** grant so Highflame can block before the provider call:
-   ```json
-   "send_hooks": [
-     { "name": "highflame", "events": ["pre_request"], "send": ["user_message", "request_body", "tools"] }
-   ]
-   ```
-4. **Author the policy in Studio:** a guardrail on the `secrets` detector, `forbid`,
-   mode `enforce`, with `@reject_message("Highflame Security has blocked your prompt
-   because it violated Enterprise Policy")`. The message you write here is exactly what
-   the developer sees.
+2. **Policies → New Policy → Guardrail.** Trigger on detected **secrets**; action
+   **block**; mode **enforce**; custom message — *"Highflame Security has blocked your
+   prompt because it violated Enterprise Policy."* That message is exactly what the
+   developer sees.
    ![Block-secrets policy](img/02-block-secrets-policy.png)
 
-> Monitor vs enforce is **your Shield policy's** call, not Aperture's — monitor logs a
-> would-block and still returns `allow`; enforce returns `block`. Start in monitor,
-> promote to enforce, no Aperture change needed.
+> Monitor vs enforce is the policy's setting: monitor records a would-block while still
+> allowing the request; enforce returns the block. Start in monitor, promote to enforce
+> when ready — no Aperture change needed.
 
 ---
 
-## Track B — see the decision (the engineer's proof)
+## See the decision
 
-You don't need a tailnet to prove the hook works — send the exact payload Aperture sends:
+You don't need a tailnet — the included script sends the same request Aperture sends and
+prints Highflame's decision:
 
 ```bash
 cp .env.example .env        # set HIGHFLAME_API_KEY (the Aperture service key)
@@ -64,42 +48,34 @@ python aperture_event.py
 ```
 
 ```text
-Aperture hook -> https://api.highflame.ai/v1/cerberus/agent/events
-
 {
   "action": "block",
   "status_code": 403,
   "message": "Highflame Security has blocked your prompt because it violated Enterprise Policy"
 }
-
-Highflame Security blocked the request -> 'Highflame Security has blocked your prompt because it violated Enterprise Policy'
 ```
 
-That `message` is what Aperture relays into Claude Code — branded, specific, not a
-generic error.
+That message is what Aperture relays into Claude Code — branded and specific, not a generic error.
 
----
-
-## Verify against prod
+## Verify
 
 ```bash
 python smoke_test.py
 ```
 
-Asserts the leak is blocked. This is what the cookbook's scheduled CI runs against a
-canary tenant.
+Confirms the leak is blocked.
 
 ---
 
-## Notes & honesty
+## Notes
 
-- **`HIGHFLAME_API_KEY` here is the Aperture service key** from Studio → Code Agents →
-  Tailscale Aperture — *not* a gateway/provider key. No key → the scripts skip, not fail.
-- **The block-secrets policy must be active** (Track A) and a tenant **Overwatch
-  baseline-permit** must be loaded, or Cedar default-deny makes *everything* a block. The
-  smoke test `WARN`s rather than lies if the decision isn't what a real policy would give.
-- **Identity is the Tailscale differentiator:** every hook payload carries `login_name`
-  and `tailnet_name`, so the block is attributed to a real developer on a real node —
-  surfaced in Studio → Code Agents. That's the per-agent-identity story auth alone can't tell.
-- **Credentials are fake:** AWS's documented `AKIAIOSFODNN7EXAMPLE` / `…EXAMPLEKEY`. They
-  match the detector without being real keys (and dodge GitHub push-protection).
+- **The key** is the Aperture service key from Studio → Code Agents → Tailscale Aperture.
+  With no key set, the script skips rather than failing.
+- **Make sure the policy is active** and your tenant's baseline authorization policy is
+  loaded, so normal requests are allowed and only secrets are blocked. The script warns and
+  skips its assertion if the policy isn't in place yet.
+- **Identity is the Tailscale advantage:** every request carries the developer's login and
+  tailnet, so the block is attributed to a real person on a real device — visible in
+  Studio → Code Agents.
+- **Credentials in the demo are fake** — AWS's documented example values, which match
+  detection without being real keys.

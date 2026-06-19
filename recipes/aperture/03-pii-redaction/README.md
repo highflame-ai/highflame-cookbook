@@ -1,39 +1,35 @@
-# 03 · Redact PII (email) — transparent scrub via Aperture `modify`
+# 03 · Redact PII (email) — scrub it, don't block it
 
-**Customer value:** *"We don't want to block developers for using customer data — we want
-the PII gone before it leaves our network. Keep them productive; scrub the address."*
+**The value:** *"We don't want to block developers for using customer data — we want the
+PII gone before it leaves our network. Keep them productive; scrub the address."*
 Blocking is blunt; **redaction keeps the developer moving** while the sensitive value never
 reaches the model.
 
-**How it works:** Aperture's `pre_request` guardrail supports a **`modify`** action — it
-forwards a *replacement* request body. Shield's `pii` detector flags the email and a Cedar
-`forbid` carrying `@redaction_strategy("mask")` scrubs it; **Cerberus returns
-`{"action":"modify","request_body":…}`** with the email replaced. Aperture forwards the
-scrubbed prompt to the provider. The model answers usefully; it never received the address.
+**How it works:** Aperture's guardrail supports a **redact** outcome — Highflame returns a
+scrubbed copy of the request and Aperture forwards *that* to the provider instead of the
+original. The model answers usefully; it never receives the address. If a request can't be
+safely scrubbed, Highflame blocks it instead — un-scrubbed PII is never forwarded.
 
-> This is the recipe the Cerberus `modify` exposure unblocked — Cerberus rewrites the
-> prompt inside `request_body` from Shield's `redacted_content`, and **fails safe to block**
-> if the body can't be rewritten, so un-scrubbed PII is never forwarded.
-
-**Stage:** [`highflame-demo-app/data/customers.csv`](https://github.com/highflame-ai/highflame-demo-app/blob/main/data/customers.csv) (seed data with fake emails).
+**Try it in the demo app:** ask the agent to *"draft a follow-up email to the lead in
+[`data/customers.csv`](https://github.com/highflame-ai/highflame-demo-app/blob/main/data/customers.csv)"* —
+the email address is masked before the model sees it.
 
 ---
 
-## Track A — author the policy in Studio
+## Set up the policy in Studio
 
-1. **Studio → Code Agents → Tailscale Aperture** (one-time hook setup — see [the track README](../README.md#one-time-setup)).
+1. **Studio → Code Agents → Tailscale Aperture** (one-time hook setup — see [the track setup](../README.md#one-time-setup)).
    For a redaction guardrail used for compliance, set the Aperture hook `fail_policy` to
-   **`fail_closed`** so a Highflame outage never forwards un-scrubbed PII.
-2. **Policies → New Policy → Guardrail.** Trigger: detector `pii`, type `email`.
-   ![PII email trigger](img/01-trigger-email.png)
-3. **Action:** *Redact / Mask* — strategy `mask`. This is what makes Cerberus return
-   `modify` instead of `block`.
-   ![Redact action](img/02-action-mask.png)
-4. **Mode:** `enforce`. Save & activate, scoped to your account/project.
+   **`fail_closed`** so an outage never forwards un-scrubbed PII.
+2. **Policies → New Policy → Guardrail.** Trigger on **PII → email**; action **redact /
+   mask**; mode **enforce**. The mask action is what makes Highflame return a scrubbed
+   request instead of a block.
+   ![Redact email policy](img/01-trigger-email.png)
+3. Save & activate.
 
 ---
 
-## Track B — see the redaction
+## See the redaction
 
 ```bash
 cp .env.example .env        # set HIGHFLAME_API_KEY (the Aperture service key)
@@ -51,32 +47,28 @@ python aperture_event.py
     ]
   }
 }
-
-Highflame redacted the prompt; Aperture forwards -> 'Draft a short follow-up email to our new lead. Their address is [REDACTED] — keep it under 80 words.'
 ```
 
 The `request_body` is exactly what Aperture sends upstream instead of the original — the
 email never leaves your network.
 
----
-
-## Verify against prod
+## Verify
 
 ```bash
 python smoke_test.py
 ```
 
-Asserts the response is `modify` and the email is **absent** from the forwarded body.
+Confirms the response redacts the email from the forwarded request.
 
 ---
 
-## Notes & honesty
+## Notes
 
-- **Needs the Cerberus `modify` exposure deployed** (the `pre_request` redaction path) and a
-  redact-email policy active in your tenant. Without the policy, the smoke test `WARN`s
-  (got `allow`/`block`) rather than pretending PII was scrubbed.
-- **`mask` / `replace` / `redact`** ship; `anonymize` is roadmap. Redaction-driven `modify`
-  is currently scoped to the **user-prompt** surface (not tool-call arguments).
-- **Block vs redact:** hard identifiers (SSN, secrets) are a [block](../02-block-pii-ssn/);
-  email/phone are better *scrubbed and forwarded* — that's this recipe.
-- Email here is fictional (`jane.doe@example.com`).
+- Requires a redact-email policy active in your tenant. Without it, the script warns and
+  skips rather than reporting a redaction that didn't happen.
+- **Mask, replace, and full-redact** strategies are supported. Redaction applies to the
+  user prompt; to govern PII inside tool-call arguments, pair it with a tool-call policy or
+  MCP grants.
+- **Block vs redact:** hard identifiers (SSNs, secrets) are a [block](../02-block-pii-ssn/);
+  email and phone are better *scrubbed and forwarded* — that's this recipe.
+- The email in the demo is fictional (`jane.doe@example.com`).

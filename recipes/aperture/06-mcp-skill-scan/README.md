@@ -1,18 +1,18 @@
-# 06 · MCP scan & SKILL scan (pre-runtime supply-chain)
+# 06 · MCP scan & SKILL scan (pre-runtime)
 
-**Customer value:** *"Before our developers connect an MCP server or install an agent skill,
-we want to know it isn't poisoned — tool shadowing, hidden prompt injection, a tool that
+**The value:** *"Before our developers connect an MCP server or install an agent skill, we
+want to know it isn't poisoned — tool shadowing, hidden prompt injection, a tool that
 quietly exfiltrates secrets."*
 
-Unlike recipes 01–05 (request-time, via the Aperture hook), this is **pre-runtime**: you scan
-what a developer is about to plug in. Two surfaces:
+Unlike recipes 01–05 (which act at request time), this one runs *before* anything is used —
+you scan what a developer is about to plug in. Two surfaces:
 
-| Surface | Tool | Catches |
+| Surface | How | Catches |
 | --- | --- | --- |
-| **MCP scan** | [`ramparts`](https://github.com/highflame-ai/highflame-ramparts) CLI | tool poisoning, tool shadowing, prompt injection, SQL injection, auth bypass, sensitive-data / PII exposure in an MCP server's tools & resources |
-| **SKILL scan** | Overwatch / Guardian (native IDE hook) | malicious or risky Claude Code **skills**, surfaced as `skill_finding` events |
+| **MCP scan** | the [`ramparts`](https://github.com/highflame-ai/highflame-ramparts) CLI | tool poisoning, tool shadowing, prompt injection, SQL injection, auth bypass, sensitive-data / PII exposure in an MCP server's tools and resources |
+| **SKILL scan** | Highflame's native IDE integration | malicious or risky agent **skills**, reported as findings |
 
-Both feed **Studio → Code Agents**, so security teams get an inventory and findings across the org.
+Both feed **Studio → Code Agents**, so security teams get an org-wide inventory and findings.
 
 ---
 
@@ -27,18 +27,16 @@ ramparts scan-config --format json
 ramparts scan http://localhost:3000 --format table
 ```
 
-See [`scan.sh`](scan.sh) for the runnable version. ramparts checks each tool/resource the
-server exposes against its security rule set (YARA-X + LLM analysis) and reports findings
-per server.
+See [`scan.sh`](scan.sh) for the runnable version. `ramparts` checks each tool and resource a
+server exposes against its security rule set and reports findings per server.
 
 ---
 
-## SKILL scan — Overwatch
+## SKILL scan
 
-The Overwatch agent (the same native-hook install that powers Claude Code enforcement) scans
-the **skills** configured in a developer's IDE and emits `skill_finding` telemetry. Findings
-appear in **Studio → Code Agents** alongside MCP scans and command analysis — no separate
-tool to run.
+Highflame's native IDE integration (the same install that powers request-time enforcement)
+scans the **skills** configured in a developer's IDE and reports risky ones. Findings appear
+in **Studio → Code Agents** alongside MCP scans — no separate tool to run.
 
 ---
 
@@ -48,16 +46,14 @@ tool to run.
 python smoke_test.py
 ```
 
-Confirms the `ramparts` CLI is installed and invokable (a full scan needs a live MCP server
-or your IDE's configured servers, so CI verifies the tool rather than a fixed target). Skips
-cleanly if ramparts isn't installed.
+Confirms the `ramparts` CLI is installed and callable. (A full scan runs against a live MCP
+server or your IDE's configured servers; the check skips if `ramparts` isn't installed.)
 
 ---
 
-## Notes & honesty
+## Notes
 
-- **Install ramparts** from [highflame-ramparts](https://github.com/highflame-ai/highflame-ramparts)
-  (it's a Rust CLI). The smoke test skips if it's not on `PATH`.
-- **This is the supply-chain layer**, complementary to the request-time recipes: scan *before*
-  you connect (here), enforce *at request time* (01–05).
-- Studio shows MCP-scan and skill-scan results under **Code Agents** for org-wide visibility.
+- **Install ramparts** from [highflame-ramparts](https://github.com/highflame-ai/highflame-ramparts).
+- **This is the supply-chain layer**, complementary to the request-time recipes: scan
+  *before* you connect (here), enforce *at request time* (01–05).
+- Results appear in Studio → Code Agents for org-wide visibility.
