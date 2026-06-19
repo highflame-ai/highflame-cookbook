@@ -53,8 +53,8 @@ curl -s http://<aperture-hostname>/v1/messages \
 
 ### 2. Generate a Highflame API key
 
-In **Highflame Studio → Code Agents → Getting Started → the *Tailscale Aperture* card →
-Generate API key.** Copy it.
+In **[Highflame Studio](https://studio.highflame.ai/) → Code Agents → Getting Started → the
+*Tailscale Aperture* card → Generate API key.** Copy it.
 
 ### 3. Add the Highflame guardrail hook in Aperture
 

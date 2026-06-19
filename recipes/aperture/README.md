@@ -29,7 +29,7 @@ Coding agent ──▶ Tailscale Aperture ──guardrail──▶ Highflame ─
 
 ## One-time setup
 
-Highflame has a built-in Tailscale Aperture integration in Studio. Full steps:
+Highflame has a built-in Tailscale Aperture integration in [Studio](https://studio.highflame.ai/). Full steps:
 [docs.highflame.ai/integrations/tailscale](https://docs.highflame.ai/integrations/tailscale/setup-guide).
 The short version:
 
