@@ -56,13 +56,24 @@ curl -s http://<aperture-hostname>/v1/messages \
 ### 2. Generate a Highflame API key
 
 In **[Highflame Studio](https://studio.highflame.ai/) → Code Agents → Getting Started → the
-*Tailscale Aperture* card → Generate API key.** Copy it.
+*Tailscale Aperture* card → Generate API key.** Copy it — this key links Aperture to your
+Highflame tenant, so events land under *your* account.
 
-### 3. Add the Highflame guardrail hook in Aperture
+### 3. Connect Aperture to Highflame (the step that makes it all work)
 
-In **Administration → Configuration**, define the Highflame hook and attach a synchronous
-`pre_request` check to the grant that carries your demo traffic
-([Tailscale: Set up a guardrail](https://tailscale.com/docs/aperture/how-to/set-up-guardrails)):
+This is what makes Aperture actually call Highflame, and it has **two parts — both required:**
+
+1. **The `apikey`** — paste the key from Step 2 into the hook. It authenticates Aperture to
+   Highflame and resolves *your* tenant. Without it, Aperture never calls Highflame.
+2. **`send_hooks` on a grant** — this is what makes matching traffic trigger the hook.
+   Without it, your traffic never reaches Highflame.
+
+Miss either and you'll see **no events in the dashboard and nothing will block** — exactly
+the "it returned 200 but nothing fired" symptom.
+
+In **Administration → Configuration**
+([Tailscale: Set up a guardrail](https://tailscale.com/docs/aperture/how-to/set-up-guardrails)),
+define the hook with your key:
 
 ```json
 "hooks": {
@@ -75,7 +86,7 @@ In **Administration → Configuration**, define the Highflame hook and attach a 
 }
 ```
 
-…and inside the grant:
+…and attach it to the grant that carries your demo traffic:
 
 ```json
 "send_hooks": [
@@ -84,6 +95,11 @@ In **Administration → Configuration**, define the Highflame hook and attach a 
 ```
 
 Use `fail_closed` for compliance-critical guardrails (e.g. PII scrubbing).
+
+**Confirm the wire is live before going further:** send any request through Aperture (the
+Step 1 `curl`, or a Claude Code prompt) and open **Studio → Code Agents** — the request should
+appear there as an event, attributed to you. **No event = the `apikey` or `send_hooks` isn't
+right**, and policies won't fire until it is.
 
 ### 4. Turn on the demo policies in Highflame Studio
 
