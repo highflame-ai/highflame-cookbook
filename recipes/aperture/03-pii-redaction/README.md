@@ -52,6 +52,12 @@ python aperture_event.py
 The `request_body` is exactly what Aperture sends upstream instead of the original — the
 email never leaves your network.
 
+> **The placeholder depends on your strategy.** The example above shows a *replace*-style
+> token. With the **mask** strategy (the most common), the value is filled with `#`
+> characters — e.g. the model receives `j######@#######.com` instead of `[REDACTED]`. Either
+> way the real address never reaches the provider; the model still understands an email was
+> there and writes the rest of the message normally.
+
 ## Verify
 
 ```bash
