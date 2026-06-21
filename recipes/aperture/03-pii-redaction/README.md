@@ -64,8 +64,11 @@ Confirms the response redacts the email from the forwarded request.
 
 ## Notes
 
-- Requires a redact-email policy active in your tenant. Without it, the script warns and
-  skips rather than reporting a redaction that didn't happen.
+- Requires a redact-email policy active in your tenant **with its action set to mask/redact**.
+  Without it, the email is **allowed through unchanged** (not blocked) — the request simply
+  isn't modified — and the script warns and skips rather than reporting a redaction that
+  didn't happen. A national-ID/secrets policy will *block*; only a mask-action policy produces
+  the `modify` outcome shown above.
 - **Mask, replace, and full-redact** strategies are supported. Redaction applies to the
   user prompt; to govern PII inside tool-call arguments, pair it with a tool-call policy or
   MCP grants.
