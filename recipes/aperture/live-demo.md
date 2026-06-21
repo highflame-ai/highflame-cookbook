@@ -59,6 +59,13 @@ In **[Highflame Studio](https://studio.highflame.ai/) → Code Agents → Gettin
 *Tailscale Aperture* card → Generate API key.** Copy it — this key links Aperture to your
 Highflame tenant, so events land under *your* account.
 
+> **Same email on both sides.** Highflame attributes each request to a developer by matching
+> their Tailscale login email to a member of your Highflame organization. Make sure **you (and
+> anyone you demo to) are a member of your Highflame org under the same email you use in
+> Tailscale.** If your org enforces the identity gate, a request from a login that isn't a
+> member is **denied before any content policy runs** — see
+> [Identity & access](README.md#identity--access).
+
 ### 3. Connect Aperture to Highflame (the step that makes it all work)
 
 This is what makes Aperture actually call Highflame, and it has **two parts — both required:**
@@ -162,8 +169,11 @@ to *you* (your tailnet login), with the policy that fired.
 
 ## If something doesn't fire
 
-- **Everything is blocked, even "hello"** → the baseline permit policy isn't enabled (Step
-  4). Enable it.
+- **Everything is blocked, even "hello"** → either the baseline permit policy isn't enabled
+  (Step 4 — enable it), or **your Tailscale login isn't a member of your Highflame org under
+  the same email** (the identity gate denies non-members before any policy runs — see
+  [Identity & access](README.md#identity--access)). Check the block reason: a *membership*
+  denial says your identity isn't a recognized member, not that content was blocked.
 - **Nothing is blocked** → the policy is in monitor mode (switch to enforce), or Claude Code
   isn't actually routing through Aperture (re-run the Step 1 `curl`, and confirm
   `ANTHROPIC_BASE_URL`).
