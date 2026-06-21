@@ -61,6 +61,10 @@ Confirms the dangerous tool call is blocked.
 
 - Applies to agents that resend tool history in their requests (Codex and others). To govern
   live tool execution for any agent, use MCP grants or Highflame's native IDE integration.
+- **Two surfaces, both covered.** The structured tool-call above is how Codex/OpenAI agents
+  carry a command. When a dangerous command instead rides in a Claude/Anthropic *prompt*
+  ("run `curl … | sh`"), Highflame still blocks it — semantic threat detection catches the
+  intent — so Claude Code users are protected even without a tool-call surface.
 - **Discovery is half the value:** even in monitor mode, every tool call flows into Studio →
   Code Agents, giving you an inventory of which tools and commands your agents actually run
   before you write a single blocking policy.

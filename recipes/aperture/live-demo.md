@@ -56,13 +56,31 @@ curl -s http://<aperture-hostname>/v1/messages \
 ### 2. Generate a Highflame API key
 
 In **[Highflame Studio](https://studio.highflame.ai/) → Code Agents → Getting Started → the
-*Tailscale Aperture* card → Generate API key.** Copy it.
+*Tailscale Aperture* card → Generate API key.** Copy it — this key links Aperture to your
+Highflame tenant, so events land under *your* account.
 
-### 3. Add the Highflame guardrail hook in Aperture
+> **Same email on both sides.** Highflame attributes each request to a developer by matching
+> their Tailscale login email to a member of your Highflame organization. Make sure **you (and
+> anyone you demo to) are a member of your Highflame org under the same email you use in
+> Tailscale.** If your org enforces the identity gate, a request from a login that isn't a
+> member is **denied before any content policy runs** — see
+> [Identity & access](README.md#identity--access).
 
-In **Administration → Configuration**, define the Highflame hook and attach a synchronous
-`pre_request` check to the grant that carries your demo traffic
-([Tailscale: Set up a guardrail](https://tailscale.com/docs/aperture/how-to/set-up-guardrails)):
+### 3. Connect Aperture to Highflame (the step that makes it all work)
+
+This is what makes Aperture actually call Highflame, and it has **two parts — both required:**
+
+1. **The `apikey`** — paste the key from Step 2 into the hook. It authenticates Aperture to
+   Highflame and resolves *your* tenant. Without it, Aperture never calls Highflame.
+2. **`send_hooks` on a grant** — this is what makes matching traffic trigger the hook.
+   Without it, your traffic never reaches Highflame.
+
+Miss either and you'll see **no events in the dashboard and nothing will block** — exactly
+the "it returned 200 but nothing fired" symptom.
+
+In **Administration → Configuration**
+([Tailscale: Set up a guardrail](https://tailscale.com/docs/aperture/how-to/set-up-guardrails)),
+define the hook with your key:
 
 ```json
 "hooks": {
@@ -75,7 +93,7 @@ In **Administration → Configuration**, define the Highflame hook and attach a 
 }
 ```
 
-…and inside the grant:
+…and attach it to the grant that carries your demo traffic:
 
 ```json
 "send_hooks": [
@@ -84,6 +102,11 @@ In **Administration → Configuration**, define the Highflame hook and attach a 
 ```
 
 Use `fail_closed` for compliance-critical guardrails (e.g. PII scrubbing).
+
+**Confirm the wire is live before going further:** send any request through Aperture (the
+Step 1 `curl`, or a Claude Code prompt) and open **Studio → Code Agents** — the request should
+appear there as an event, attributed to you. **No event = the `apikey` or `send_hooks` isn't
+right**, and policies won't fire until it is.
 
 ### 4. Turn on the demo policies in Highflame Studio
 
@@ -146,8 +169,11 @@ to *you* (your tailnet login), with the policy that fired.
 
 ## If something doesn't fire
 
-- **Everything is blocked, even "hello"** → the baseline permit policy isn't enabled (Step
-  4). Enable it.
+- **Everything is blocked, even "hello"** → either the baseline permit policy isn't enabled
+  (Step 4 — enable it), or **your Tailscale login isn't a member of your Highflame org under
+  the same email** (the identity gate denies non-members before any policy runs — see
+  [Identity & access](README.md#identity--access)). Check the block reason: a *membership*
+  denial says your identity isn't a recognized member, not that content was blocked.
 - **Nothing is blocked** → the policy is in monitor mode (switch to enforce), or Claude Code
   isn't actually routing through Aperture (re-run the Step 1 `curl`, and confirm
   `ANTHROPIC_BASE_URL`).

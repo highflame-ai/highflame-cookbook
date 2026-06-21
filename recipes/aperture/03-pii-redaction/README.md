@@ -52,6 +52,12 @@ python aperture_event.py
 The `request_body` is exactly what Aperture sends upstream instead of the original — the
 email never leaves your network.
 
+> **The placeholder depends on your strategy.** The example above shows a *replace*-style
+> token. With the **mask** strategy (the most common), the value is filled with `#`
+> characters — e.g. the model receives `j######@#######.com` instead of `[REDACTED]`. Either
+> way the real address never reaches the provider; the model still understands an email was
+> there and writes the rest of the message normally.
+
 ## Verify
 
 ```bash
@@ -64,8 +70,11 @@ Confirms the response redacts the email from the forwarded request.
 
 ## Notes
 
-- Requires a redact-email policy active in your tenant. Without it, the script warns and
-  skips rather than reporting a redaction that didn't happen.
+- Requires a redact-email policy active in your tenant **with its action set to mask/redact**.
+  Without it, the email is **allowed through unchanged** (not blocked) — the request simply
+  isn't modified — and the script warns and skips rather than reporting a redaction that
+  didn't happen. A national-ID/secrets policy will *block*; only a mask-action policy produces
+  the `modify` outcome shown above.
 - **Mask, replace, and full-redact** strategies are supported. Redaction applies to the
   user prompt; to govern PII inside tool-call arguments, pair it with a tool-call policy or
   MCP grants.

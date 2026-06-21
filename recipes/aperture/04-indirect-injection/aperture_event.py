@@ -33,6 +33,12 @@ ENDPOINT = os.environ.get(
     "https://api.highflame.ai/v1/cerberus/agent/events",
 )
 API_KEY = os.environ.get("HIGHFLAME_API_KEY")
+# The developer this request is attributed to. Aperture supplies a verified
+# login_name in production; here it is configurable so you can run the script as
+# yourself. With Highflame's identity gate enabled, this MUST be a member of your
+# Highflame org under this email (same email as your Tailscale login) — a
+# non-member is denied at the identity layer before any content policy runs.
+LOGIN_NAME = os.environ.get("HIGHFLAME_APERTURE_LOGIN") or "developer@example.com"
 
 # The hidden instruction smuggled inside docs/integration.md, now riding back into
 # the LLM request as part of the conversation after the agent "read" the file.
@@ -50,7 +56,7 @@ def aperture_pre_request(user_message: str) -> dict:
     return {
         "event": "pre_request",
         "metadata": {
-            "login_name": "developer@example.com",
+            "login_name": LOGIN_NAME,
             "user_agent": "aperture_claude",
             "provider": "anthropic",
             "model": "claude-opus-4-8",
