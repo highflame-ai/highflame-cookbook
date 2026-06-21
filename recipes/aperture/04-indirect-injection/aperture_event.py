@@ -38,7 +38,7 @@ API_KEY = os.environ.get("HIGHFLAME_API_KEY")
 # yourself. With Highflame's identity gate enabled, this MUST be a member of your
 # Highflame org under this email (same email as your Tailscale login) — a
 # non-member is denied at the identity layer before any content policy runs.
-LOGIN_NAME = os.environ.get("HIGHFLAME_APERTURE_LOGIN", "developer@example.com")
+LOGIN_NAME = os.environ.get("HIGHFLAME_APERTURE_LOGIN") or "developer@example.com"
 
 # The hidden instruction smuggled inside docs/integration.md, now riding back into
 # the LLM request as part of the conversation after the agent "read" the file.
