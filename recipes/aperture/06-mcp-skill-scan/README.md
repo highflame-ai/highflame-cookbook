@@ -9,14 +9,17 @@ you scan what a developer is about to plug in. Two surfaces:
 
 | Surface | How | Catches |
 | --- | --- | --- |
-| **MCP scan** | the [`ramparts`](https://github.com/highflame-ai/highflame-ramparts) CLI | tool poisoning, tool shadowing, prompt injection, SQL injection, auth bypass, sensitive-data / PII exposure in an MCP server's tools and resources |
-| **SKILL scan** | Highflame's native IDE integration | malicious or risky agent **skills**, reported as findings |
+| **MCP scan** | the [`ramparts`](https://github.com/highflame-ai/ramparts) CLI | tool poisoning, tool shadowing, prompt injection, SQL injection, auth bypass, sensitive-data / PII exposure in an MCP server's tools and resources |
+| **SKILL scan** | the same `ramparts` CLI (it scans agent **skill files** too — Claude Code commands, agentskills.io bundles), plus Highflame's native IDE integration | malicious or risky agent **skills**, reported as findings |
 
 Both feed **Studio → Code Agents**, so security teams get an org-wide inventory and findings.
 
 ---
 
 ## MCP scan — `ramparts`
+
+**Install** — `cargo install ramparts`, or download a prebuilt binary (e.g.
+`ramparts-linux-x86_64`) from the [releases](https://github.com/highflame-ai/ramparts/releases):
 
 ```bash
 # Scan the MCP servers your coding agent is configured to reach
@@ -53,7 +56,9 @@ server or your IDE's configured servers; the check skips if `ramparts` isn't ins
 
 ## Notes
 
-- **Install ramparts** from [highflame-ramparts](https://github.com/highflame-ai/highflame-ramparts).
+- **Install ramparts**: `cargo install ramparts`, or grab a prebuilt binary from the
+  [releases](https://github.com/highflame-ai/ramparts/releases). Source + docs:
+  [highflame-ai/ramparts](https://github.com/highflame-ai/ramparts).
 - **This is the supply-chain layer**, complementary to the request-time recipes: scan
   *before* you connect (here), enforce *at request time* (01–05).
 - Results appear in Studio → Code Agents for org-wide visibility.
