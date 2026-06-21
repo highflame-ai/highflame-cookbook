@@ -35,12 +35,16 @@ and turn on the Studio policies. Reference:
 ## How it works
 
 **You control the message.** What a developer sees on a block is the message you write on
-the policy in Studio.
+the policy in Studio. Highflame frames it as **"Highflame Security has blocked your prompt
+because …"** automatically, so you can write just the reason (e.g. *"it contained a national
+ID"*); if your message already starts with "Highflame Security", it's shown verbatim, never
+double-prefixed.
 
 **Identity on every request — the Tailscale-native advantage.** Every decision carries the
 developer's login and tailnet, so a block is attributed to a real person on a real device,
 visible in Studio → Code Agents. That's the per-developer accountability authentication
-alone can't give you.
+alone can't give you. How that login becomes a Highflame user is explained in
+[**Identity & access**](#identity--access) below.
 
 ### What the guardrail does
 
@@ -64,6 +68,39 @@ cover the rest:
   MCP grants or Highflame's native IDE integration. The pre-request guardrail still catches
   a dangerous command *in the request* and can strip risky tool declarations before the
   model sees them.
+
+---
+
+## Identity & access
+
+Aperture runs inside your tailnet, so it already knows *who* sent each request: Tailscale
+verifies every developer through your identity provider and attaches their email — the
+`login_name` — to the request. Highflame turns that into a real, governed identity:
+
+1. **Match the email to a Highflame user.** Highflame looks up the `login_name` against the
+   members of your Highflame organization.
+2. **Check membership (deny-by-default).** If the email belongs to a member, the request
+   proceeds and the event is attributed to that person — plus a per-developer agent identity,
+   so each developer's coding agent has its own traceable identity. **If the email is not a
+   member of your organization, the request is denied** — people outside your org can't route
+   traffic through your gateway, even on your tailnet.
+3. **Attribute everything.** From there, every decision (allow / block / redact) is recorded
+   against the real developer in **Studio → Code Agents** — no shared service account, no
+   anonymous traffic.
+
+> ### ⚠️ One requirement: same email on both sides
+>
+> Highflame matches a developer by **email**. A developer must sign in to Highflame with the
+> **same email address** they use for Tailscale / Aperture. If `alice@yourco.com` is her
+> Tailscale login, she must be a member of your Highflame organization as `alice@yourco.com`
+> — otherwise Highflame can't recognize her and her requests are denied.
+>
+> Practically: when you invite your developers to Highflame (Studio → members), use the same
+> email addresses they already use in Tailscale.
+
+No member matches a login? That request is blocked at the identity layer **before** any
+content policy runs — so a deny you didn't expect is usually a *membership* problem (wrong or
+un-invited email), not a content one. See [troubleshooting](live-demo.md#if-something-doesnt-fire).
 
 ---
 
@@ -101,7 +138,9 @@ supported; ask your Highflame contact and we'll add the recipe.
   Aperture change needed.
 - **Run it yourself.** Each recipe ships a short script that sends a representative request
   to Highflame and prints the decision, so you can confirm the setup without standing up a
-  tailnet.
+  tailnet. If your org enforces the identity gate, set `HIGHFLAME_APERTURE_LOGIN` to your
+  Highflame login email first (see [Identity & access](#identity--access)), so the script
+  runs as a real member instead of the placeholder `developer@example.com`.
 
 ## Other integrations
 

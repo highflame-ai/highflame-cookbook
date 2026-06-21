@@ -35,6 +35,12 @@ ENDPOINT = os.environ.get(
     "https://api.highflame.ai/v1/cerberus/agent/events",
 )
 API_KEY = os.environ.get("HIGHFLAME_API_KEY")
+# The developer this request is attributed to. Aperture supplies a verified
+# login_name in production; here it is configurable so you can run the script as
+# yourself. With Highflame's identity gate enabled, this MUST be a member of your
+# Highflame org under this email (same email as your Tailscale login) — a
+# non-member is denied at the identity layer before any content policy runs.
+LOGIN_NAME = os.environ.get("HIGHFLAME_APERTURE_LOGIN", "developer@example.com")
 
 # What a developer pastes from the demo-app's src/config.js. The credentials are AWS's own
 # documented example values — they trip the secret detector without being real keys.
@@ -50,7 +56,7 @@ def aperture_pre_request(user_message: str) -> dict:
     return {
         "event": "pre_request",
         "metadata": {
-            "login_name": "developer@example.com",  # Tailscale identity rides along
+            "login_name": LOGIN_NAME,  # Tailscale identity rides along
             "user_agent": "aperture_claude",  # Claude Code behind Aperture
             "provider": "anthropic",
             "model": "claude-opus-4-8",
