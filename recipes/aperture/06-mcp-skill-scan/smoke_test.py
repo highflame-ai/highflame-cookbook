@@ -16,7 +16,7 @@ import sys
 
 def main() -> int:
     if shutil.which("ramparts") is None:
-        print("SKIP: ramparts CLI not installed (see highflame-ramparts).")
+        print("SKIP: ramparts CLI not installed (see https://github.com/highflame-ai/ramparts).")
         return 2
 
     result = subprocess.run(

@@ -2,11 +2,11 @@
 # Scan the MCP servers your coding agent can reach for tool poisoning, prompt
 # injection, and sensitive-data exposure — BEFORE they touch production work.
 #
-# Requires the ramparts CLI: https://github.com/highflame-ai/highflame-ramparts
+# Requires the ramparts CLI: https://github.com/highflame-ai/ramparts
 set -euo pipefail
 
 if ! command -v ramparts >/dev/null 2>&1; then
-  echo "ramparts not installed — see https://github.com/highflame-ai/highflame-ramparts" >&2
+  echo "ramparts not installed — see https://github.com/highflame-ai/ramparts" >&2
   exit 2
 fi
 
