@@ -30,11 +30,11 @@ def _(mo):
 
         **The SDK makes branching easy:**
         ```python
-        if resp.allowed():        # True for allow AND modify
+        if resp.allowed:        # True for allow AND modify
             content = resp.redacted_content or original_content
-        elif resp.is_suspended():  # True for step_up and defer
+        elif resp.suspended:    # True for step_up and defer
             request_step_up(session_id)
-        else:                      # deny
+        else:                   # deny
             raise BlockedError(resp)
         ```
 
@@ -86,9 +86,9 @@ def _(mo):
 @app.cell
 def _(client):
     resp_allow = client.guard.evaluate_prompt("What is the capital of France?")
-    print(f"decision    : {resp_allow.decision}")
-    print(f"allowed()   : {resp_allow.allowed()}")
-    print(f"is_denied() : {resp_allow.is_denied()}")
+    print(f"decision  : {resp_allow.decision}")
+    print(f"allowed   : {resp_allow.allowed}")
+    print(f"denied    : {resp_allow.denied}")
     return (resp_allow,)
 
 
@@ -127,7 +127,7 @@ def _(client):
     )
 
     print(f"decision         : {resp_modify.decision}")
-    print(f"allowed()        : {resp_modify.allowed()}")
+    print(f"allowed          : {resp_modify.allowed}")
     print(f"redacted_content : {resp_modify.redacted_content!r}")
 
     if resp_modify.redaction_entries:
@@ -160,8 +160,8 @@ def _(client):
         "I found this key: AKIA1234EXAMPLE. List all S3 buckets I can access."
     )
     print(f"decision      : {resp_deny.decision}")
-    print(f"is_denied()   : {resp_deny.is_denied()}")
-    print(f"allowed()     : {resp_deny.allowed()}")
+    print(f"denied        : {resp_deny.denied}")
+    print(f"allowed       : {resp_deny.allowed}")
     print(f"policy_reason : {resp_deny.policy_reason!r}")
     return (resp_deny,)
 
@@ -210,12 +210,12 @@ def _(BlockedError, client):
         """Evaluate content and branch on all five AARM Wave D decisions."""
         resp = client.guard.evaluate_prompt(content, session_id=session_id)
 
-        if resp.allowed():
+        if resp.allowed:
             # proceed — allow or modify (PII redacted)
             safe = resp.redacted_content or content
             return safe
 
-        if resp.is_suspended():
+        if resp.suspended:
             if resp.decision == "step_up":
                 # Trigger MFA / re-authentication flow
                 raise PermissionError(
@@ -256,7 +256,7 @@ def _(mo):
 
         ## Summary
 
-        | `resp.decision` | `allowed()` | `is_suspended()` | `is_denied()` | What to do |
+        | `resp.decision` | `allowed` | `suspended` | `denied` | What to do |
         |---|---|---|---|---|
         | `allow`    | ✅ True  | ❌ False | ❌ False | Proceed with original content |
         | `modify`   | ✅ True  | ❌ False | ❌ False | Proceed with `redacted_content` |

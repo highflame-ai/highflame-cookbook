@@ -78,7 +78,7 @@ def _(client):
         session_id="tool-demo-safe-001",
     )
     print(f"decision  : {safe_resp.decision}")
-    print(f"allowed() : {safe_resp.allowed()}")
+    print(f"allowed   : {safe_resp.allowed}")
     return (safe_resp,)
 
 
@@ -110,7 +110,7 @@ def _(client):
         session_id="tool-demo-shell-001",
     )
     print(f"decision      : {shell_resp.decision}")
-    print(f"is_denied()   : {shell_resp.is_denied()}")
+    print(f"denied        : {shell_resp.denied}")
     print(f"policy_reason : {shell_resp.policy_reason!r}")
     return (shell_resp,)
 

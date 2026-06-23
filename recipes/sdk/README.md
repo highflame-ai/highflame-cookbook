@@ -118,11 +118,11 @@ resp = client.guard.evaluate_tool_call(
 ### Branch on Wave D decisions
 
 ```python
-if resp.allowed():                         # allow or modify
+if resp.allowed:                      # allow or modify
     content = resp.redacted_content or original
-elif resp.is_suspended():                  # step_up or defer
+elif resp.suspended:                  # step_up or defer
     handle_step_up_or_defer(resp.decision)
-else:                                      # deny
+else:                                 # deny
     raise BlockedError(resp)
 ```
 
