@@ -56,6 +56,7 @@ def _():
     client = Highflame(
         api_key=os.environ["HIGHFLAME_API_KEY"],
         base_url=os.environ.get("HIGHFLAME_BASE_URL") or "https://api.highflame.ai",
+        token_url=os.environ.get("HIGHFLAME_TOKEN_URL") or "https://auth.highflame.ai/oauth2/token",
     )
 
     # All turns in a conversation share one session_id.
@@ -126,11 +127,11 @@ def _(SESSION_ID, client):
     print(f"decision      : {debug_resp.decision}")
     print(f"policy_reason : {debug_resp.policy_reason!r}")
 
-    if debug_resp.debug_info:
-        delta = debug_resp.debug_info.session_delta
-        if delta:
-            print(f"\nsession_delta :")
-            for key, val in (delta or {}).items():
+    delta = debug_resp.session_delta
+    if delta:
+        print(f"\nsession_delta :")
+        for key, val in vars(delta).items():
+            if val is not None:
                 print(f"  {key}: {val}")
     return GuardRequest, debug_resp
 

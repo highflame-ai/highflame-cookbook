@@ -51,6 +51,7 @@ def _():
     client = Highflame(
         api_key=os.environ["HIGHFLAME_API_KEY"],
         base_url=os.environ.get("HIGHFLAME_BASE_URL") or "https://api.highflame.ai",
+        token_url=os.environ.get("HIGHFLAME_TOKEN_URL") or "https://auth.highflame.ai/oauth2/token",
     )
     return BlockedError, Shield, client, os
 

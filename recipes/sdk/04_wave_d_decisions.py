@@ -66,6 +66,7 @@ def _():
     client = Highflame(
         api_key=os.environ["HIGHFLAME_API_KEY"],
         base_url=os.environ.get("HIGHFLAME_BASE_URL") or "https://api.highflame.ai",
+        token_url=os.environ.get("HIGHFLAME_TOKEN_URL") or "https://auth.highflame.ai/oauth2/token",
     )
     return BlockedError, GuardRequest, client, os
 
@@ -133,7 +134,7 @@ def _(client):
     if resp_modify.redaction_entries:
         print("\nRedaction entries:")
         for entry in resp_modify.redaction_entries:
-            print(f"  {entry.label}: {entry.original!r} → {entry.replacement!r}")
+            print(f"  [{entry.start_pos}:{entry.end_pos}] {entry.original!r} → {entry.replacement!r}")
 
     # Correct usage: use redacted content if present, original otherwise
     safe_content = resp_modify.redacted_content or original

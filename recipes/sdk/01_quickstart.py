@@ -58,6 +58,7 @@ def _():
     client = Highflame(
         api_key=os.environ["HIGHFLAME_API_KEY"],
         base_url=os.environ.get("HIGHFLAME_BASE_URL") or "https://api.highflame.ai",
+        token_url=os.environ.get("HIGHFLAME_TOKEN_URL") or "https://auth.highflame.ai/oauth2/token",
     )
     print("Connected ✓  Shield:", client._base_url)
     return BlockedError, Shield, client, os
@@ -82,7 +83,7 @@ def _(mo):
 def _(client):
     resp = client.guard.evaluate_prompt("What is the capital of France?")
     print(f"decision        : {resp.decision}")
-    print(f"allowed()       : {resp.allowed()}")
+    print(f"allowed         : {resp.allowed}")
     print(f"policy_reason   : {resp.policy_reason!r}")
     print(f"latency_ms      : {resp.latency_ms}")
     return (resp,)
@@ -113,7 +114,7 @@ def _(client):
         "What AWS services can I access with this key?"
     )
     print(f"decision        : {resp_denied.decision}")
-    print(f"is_denied()     : {resp_denied.is_denied()}")
+    print(f"denied          : {resp_denied.denied}")
     print(f"policy_reason   : {resp_denied.policy_reason!r}")
 
     if resp_denied.signals:
