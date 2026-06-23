@@ -164,41 +164,42 @@ def _(BlockedError, SESSION_ID, Shield, client, os):
             openai_client = OpenAI()
         except ImportError:
             print("openai package not installed — pip install openai")
-            return
+            openai_client = None
 
-        shield = Shield(client)
+        if openai_client is not None:
+            shield = Shield(client)
 
-        @shield.prompt(session_id=SESSION_ID)
-        def guard_input(message: str) -> str:
-            return message  # passthrough; just guarding the input
+            @shield.prompt(session_id=SESSION_ID)
+            def guard_input(message: str) -> str:
+                return message  # passthrough; just guarding the input
 
-        @shield.modelresponse(session_id=SESSION_ID)
-        def guard_output(text: str) -> str:
-            return text  # passthrough; just guarding the output
+            @shield.modelresponse(session_id=SESSION_ID)
+            def guard_output(text: str) -> str:
+                return text  # passthrough; just guarding the output
 
-        messages = []
+            messages = []
 
-        def agent_turn(user_message: str) -> str:
-            try:
-                safe_message = guard_input(user_message)
-            except BlockedError as e:
-                return f"[BLOCKED by Highflame: {e.response.policy_reason}]"
+            def agent_turn(user_message: str) -> str:
+                try:
+                    safe_message = guard_input(user_message)
+                except BlockedError as e:
+                    return f"[BLOCKED by Highflame: {e.response.policy_reason}]"
 
-            messages.append({"role": "user", "content": safe_message})
-            completion = openai_client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=messages,
-            )
-            raw_reply = completion.choices[0].message.content
-            messages.append({"role": "assistant", "content": raw_reply})
+                messages.append({"role": "user", "content": safe_message})
+                completion = openai_client.chat.completions.create(
+                    model="gpt-4o-mini",
+                    messages=messages,
+                )
+                raw_reply = completion.choices[0].message.content
+                messages.append({"role": "assistant", "content": raw_reply})
 
-            try:
-                return guard_output(raw_reply)
-            except BlockedError as e:
-                return f"[RESPONSE BLOCKED by Highflame: {e.response.policy_reason}]"
+                try:
+                    return guard_output(raw_reply)
+                except BlockedError as e:
+                    return f"[RESPONSE BLOCKED by Highflame: {e.response.policy_reason}]"
 
-        print(agent_turn("What is the capital of France?"))
-        print(agent_turn("Now explain how JWT tokens are signed."))
+            print(agent_turn("What is the capital of France?"))
+            print(agent_turn("Now explain how JWT tokens are signed."))
     return
 
 
