@@ -55,7 +55,7 @@ def _():
 
     client = Highflame(
         api_key=os.environ["HIGHFLAME_API_KEY"],
-        base_url=os.environ.get("HIGHFLAME_BASE_URL", "https://api.highflame.ai"),
+        base_url=os.environ.get("HIGHFLAME_BASE_URL") or "https://api.highflame.ai",
     )
 
     # All turns in a conversation share one session_id.
@@ -155,8 +155,6 @@ def _(mo):
 
 @app.cell
 def _(BlockedError, SESSION_ID, Shield, client, os):
-    import sys
-
     if not os.environ.get("OPENAI_API_KEY"):
         print("OPENAI_API_KEY not set — skipping live OpenAI loop.")
         print("Add it to .env to see the full session-tracked agent.")
@@ -166,7 +164,7 @@ def _(BlockedError, SESSION_ID, Shield, client, os):
             openai_client = OpenAI()
         except ImportError:
             print("openai package not installed — pip install openai")
-            sys.exit(0)
+            return
 
         shield = Shield(client)
 
