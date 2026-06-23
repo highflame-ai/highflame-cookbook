@@ -18,6 +18,7 @@ team already runs AI. Find your row:
 
 | You run… | Recipe | What you change | What you gain |
 | --- | --- | --- | --- |
+| **The Highflame SDK directly** | [`recipes/sdk/`](recipes/sdk/) | `pip install highflame` + four lines | Full guardrail coverage on every prompt and tool call; the foundation all other recipes build on |
 | **Coding agents** (Claude Code, Cursor, Codex…) behind **Tailscale Aperture** | [`recipes/aperture/`](recipes/aperture/) | Add one Highflame hook in Aperture | Block secret & PII leaks, redact PII, stop prompt injection — with per-developer identity on every request |
 | **LiteLLM** already | [`recipes/litellm/`](recipes/litellm/) | Add Highflame as an upstream provider, or as a guardrail hook | Keep your routing and budgets; add the security + identity layer |
 | **The OpenAI SDK / LangChain** from scratch | _coming soon_ | Point your base URL at Highflame | Policy enforcement + observability, zero instrumentation |
@@ -41,12 +42,13 @@ a real key.
 
 ## Recipes
 
-| Recipe | For | Status |
-| --- | --- | --- |
-| [**Code agents via Tailscale Aperture**](recipes/aperture/) | Securing Claude Code / Cursor / Codex behind Aperture | ✅ ready |
-| [**LiteLLM**](recipes/litellm/) | Teams already running LiteLLM | ✅ ready |
-| OpenAI SDK / LangChain (greenfield) | New projects | coming soon |
-| Portkey | Teams on Portkey | coming soon |
+| Recipe | For | Format | Status |
+| --- | --- | --- | --- |
+| [**Highflame SDK**](recipes/sdk/) | Evaluate prompts & tools directly; the foundation | Marimo notebooks | ✅ ready |
+| [**Code agents via Tailscale Aperture**](recipes/aperture/) | Securing Claude Code / Cursor / Codex behind Aperture | Python scripts | ✅ ready |
+| [**LiteLLM**](recipes/litellm/) | Teams already running LiteLLM | Python scripts | ✅ ready |
+| OpenAI SDK / LangChain (greenfield) | New projects | — | coming soon |
+| Portkey | Teams on Portkey | — | coming soon |
 
 ---
 
@@ -56,8 +58,11 @@ Every recipe follows the same shape, so a five-minute walkthrough looks the same
 
 1. **Set up once in Studio** — generate a key and turn on a policy (each recipe has the
    exact click-path, with screenshots).
-2. **Run the proof** — a short script sends a representative request and shows you
-   Highflame's decision: **allow**, **block** (with the message you set in Studio), or **redact**.
+2. **Run the proof** — a short script (or Marimo notebook) sends a representative request
+   and shows you Highflame's decision: **allow**, **deny** (with the message you set in
+   Studio), or **modify** (PII redacted).
+
+### Scripts
 
 ```bash
 cd recipes/<recipe>
@@ -65,6 +70,36 @@ cp .env.example .env          # add your Highflame API key
 pip install -r requirements.txt
 python <script named in the recipe README>
 ```
+
+### Marimo notebooks (SDK recipes)
+
+```bash
+cd recipes/sdk
+pip install -r requirements.txt
+cp .env.example .env          # add your HIGHFLAME_API_KEY
+marimo run 01_quickstart.py   # interactive browser UI
+```
+
+Or open any notebook in the full editor:
+
+```bash
+marimo edit 01_quickstart.py
+```
+
+---
+
+## SDK recipe notebooks
+
+The SDK recipe (`recipes/sdk/`) is a series of four interactive
+[Marimo](https://marimo.io) notebooks — reactive Python cells you run and
+modify in the browser.
+
+| Notebook | What it covers |
+| --- | --- |
+| [`01_quickstart.py`](recipes/sdk/01_quickstart.py) | Connect, evaluate a prompt, `@shield.prompt` decorator |
+| [`02_tool_security.py`](recipes/sdk/02_tool_security.py) | Guard tool calls, `@shield.tool`, rich ToolContext |
+| [`03_agentic_sessions.py`](recipes/sdk/03_agentic_sessions.py) | Cross-turn session tracking, full OpenAI agent loop |
+| [`04_wave_d_decisions.py`](recipes/sdk/04_wave_d_decisions.py) | All five AARM decisions: allow / deny / modify / step_up / defer |
 
 ---
 
