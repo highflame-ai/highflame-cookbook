@@ -20,6 +20,7 @@ team already runs AI. Find your row:
 | --- | --- | --- | --- |
 | **Coding agents** (Claude Code, Cursor, Codex…) behind **Tailscale Aperture** | [`recipes/aperture/`](recipes/aperture/) | Add one Highflame hook in Aperture | Block secret & PII leaks, redact PII, stop prompt injection — with per-developer identity on every request |
 | **LiteLLM** already | [`recipes/litellm/`](recipes/litellm/) | Add Highflame as an upstream provider, or as a guardrail hook | Keep your routing and budgets; add the security + identity layer |
+| **MCP servers** and want your **IdP** to manage access (Okta…) _(preview)_ | [`recipes/enterprise-managed-auth/`](recipes/enterprise-managed-auth/) | Connect your IdP via Cross-App Access | Zero-touch, IdP-governed MCP access — no per-user OAuth, instant revocation, central audit |
 | **The OpenAI SDK / LangChain** from scratch | _coming soon_ | Point your base URL at Highflame | Policy enforcement + observability, zero instrumentation |
 | **Your own agents / framework** | _coming soon_ | A guard call + a per-agent identity | Inline guardrails and per-agent identity |
 
