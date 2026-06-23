@@ -31,6 +31,8 @@ def main() -> int:
     try:
         with urllib.request.urlopen(url, timeout=15) as resp:  # noqa: S310 — fixed https base
             meta = json.load(resp)
+        if not isinstance(meta, dict):
+            raise ValueError("metadata is not a JSON object")
     except (urllib.error.URLError, ValueError) as exc:
         print(f"FAIL could not fetch protected-resource metadata at {url}: {exc}")
         return 1

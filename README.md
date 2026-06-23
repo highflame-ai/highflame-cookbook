@@ -46,6 +46,7 @@ a real key.
 | --- | --- | --- |
 | [**Code agents via Tailscale Aperture**](recipes/aperture/) | Securing Claude Code / Cursor / Codex behind Aperture | ✅ ready |
 | [**LiteLLM**](recipes/litellm/) | Teams already running LiteLLM | ✅ ready |
+| [**Enterprise-Managed Authorization**](recipes/enterprise-managed-auth/) | IdP-managed MCP access (Okta Cross-App Access) | 🔬 preview |
 | OpenAI SDK / LangChain (greenfield) | New projects | coming soon |
 | Portkey | Teams on Portkey | coming soon |
 

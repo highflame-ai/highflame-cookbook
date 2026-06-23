@@ -56,7 +56,7 @@ client ID** and we register the trust for you (claim mapping, allowed accounts, 
 Once registered, **Studio → Connections → Enterprise-Managed Authorization** lists your
 provider — issuer, audience, and how its claims map to your Highflame identities — so you can
 confirm the trust is live. Reference:
-[docs.highflame.ai/integrations/enterprise-managed-authorization](https://docs.highflame.ai).
+[docs.highflame.ai](https://docs.highflame.ai).
 
 ### 3. Point your agent at Highflame
 
