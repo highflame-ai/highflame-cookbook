@@ -38,9 +38,24 @@ _hf = Highflame(
 
 
 def _denied(resp: Any) -> bool:
-    """A guard response is a block if the effective decision is anything but allow."""
-    decision = getattr(resp, "decision", None) or getattr(resp, "actual_decision", None)
-    return str(decision).lower() in {"deny", "block", "step_up", "defer"}
+    """A guard response requires blocking if the SDK says it did not proceed.
+
+    Uses the SDK's ``allowed()`` helper which encodes the AARM Wave D disposition
+    classes correctly:
+      proceed   = {allow, modify}   → allowed() is True  → do NOT block
+      suspended = {step_up, defer}  → allowed() is False → block (treat as deny)
+      blocked   = {deny}            → allowed() is False → block
+
+    Note: ``modify`` (PII redaction) is in the *proceed* class — the SDK has
+    already replaced the content with the redacted version before this hook
+    runs, so the LLM call should continue with the sanitised prompt.
+    """
+    allowed_fn = getattr(resp, "allowed", None)
+    if callable(allowed_fn):
+        return not allowed_fn()
+    # Fallback for non-SDK response objects (unit-test mocks etc.)
+    decision = str(getattr(resp, "decision", "") or "").lower()
+    return decision not in {"allow", "modify", ""}
 
 
 def _last_user_text(messages: list[dict]) -> str:
