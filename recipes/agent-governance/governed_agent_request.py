@@ -38,9 +38,9 @@ try:
 except ImportError:  # dotenv is optional
     pass
 
-ENDPOINT = os.environ.get(
-    "HIGHFLAME_AGENT_ENDPOINT",
-    "https://api.highflame.ai/v1/cerberus/agent/events",
+ENDPOINT = (
+    os.environ.get("HIGHFLAME_AGENT_ENDPOINT")
+    or "https://api.highflame.ai/v1/cerberus/agent/events"
 )
 API_KEY = os.environ.get("HIGHFLAME_API_KEY")
 
