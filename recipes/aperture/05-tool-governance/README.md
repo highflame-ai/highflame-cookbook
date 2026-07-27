@@ -28,7 +28,6 @@ the `curl … | sh` is blocked.
    a **Code Agents** template), set mode **enforce**, and, optionally, a custom message —
    _"Highflame Security has detected unauthorized shell access."_ The template ships the
    exact rules in step 3, so you don't have to build them.
-   ![Shell governance policy](img/01-trigger-shell.png)
 3. **Or build it from scratch.** In **Studio → Code Agents → Policies**, under the **Tool
    Permissioning** category, create a **New Policy** on action **`call_tool`**,
    action **block**, mode **enforce**. Add these conditions — each is its own rule, and

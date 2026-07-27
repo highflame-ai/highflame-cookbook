@@ -6,6 +6,7 @@ Sends a pre_request whose request_body.input carries an exec_command running
 
 Exit codes: 0 = pass (or policy-not-active warning), 1 = unexpected, 2 = skipped.
 """
+
 from __future__ import annotations
 
 import os
@@ -27,8 +28,9 @@ def main() -> int:
         return 0
     if action in ("allow", "modify"):
         print(
-            "WARN command not blocked — is a tool/shell policy (bash AST classifier "
-            "or tool_risk) active in enforce mode for this tenant?"
+            "WARN command not blocked — is the Shell & Command Governance template "
+            "(tools.shell-command-governance) or an equivalent tool/shell policy "
+            "active in enforce mode for this tenant?"
         )
         return 0  # not a hard failure: tenant may run monitor mode or lack the policy
     print(f"FAIL unexpected response: {resp}")
