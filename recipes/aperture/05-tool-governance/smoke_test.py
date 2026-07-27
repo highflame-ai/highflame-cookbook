@@ -22,9 +22,19 @@ def main() -> int:
 
     resp = post_event(aperture_pre_request(PROMPT, DANGEROUS_CMD))
     action = resp.get("action")
+    message = resp.get("message") or ""
 
     if action == "block":
-        print(f"PASS dangerous tool call blocked -> {resp.get('message')!r}")
+        # An identity-gate denial is also a block — but it fires before any
+        # content policy runs, so it must not count as a policy pass.
+        if "not a member" in message:
+            print(
+                "WARN blocked by the identity gate, not the shell policy — set "
+                "HIGHFLAME_APERTURE_LOGIN to your Highflame org email (same email "
+                "as your Tailscale login). See ../README.md#identity--access."
+            )
+            return 0
+        print(f"PASS dangerous tool call blocked -> {message!r}")
         return 0
     if action in ("allow", "modify"):
         print(

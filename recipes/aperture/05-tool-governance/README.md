@@ -83,3 +83,23 @@ Confirms the dangerous tool call is blocked.
   Code Agents, giving you an inventory of which tools and commands your agents actually run
   before you write a single blocking policy.
 - The command targets `evil.example`, reserved and non-routable.
+
+---
+
+## Troubleshooting
+
+- **`502 "API key resolution failed"`** — the key isn't known to the environment you're
+  calling. Almost always a wrong or stale key: re-copy the credential from the same Studio
+  environment the endpoint belongs to, and `unset HIGHFLAME_API_KEY` in your shell first — an
+  exported variable silently overrides `.env`.
+- **`403 "…identity is not a member of this Highflame organization"`** — the key resolved,
+  but `HIGHFLAME_APERTURE_LOGIN` isn't recognized as a member of the org/project the key
+  belongs to. Set it to your Highflame login email (same email as your Tailscale login), and
+  make sure you're a member of the **project the key is scoped to** — being an org admin
+  without explicit project membership can be denied on older deployments.
+- **You changed a policy but the result didn't change (and no new event in Observatory)** —
+  Highflame dedupes repeated event ids. The scripts here stamp a unique `session_id` /
+  `request_id` per run for exactly this reason; if you build your own payloads, do the same.
+- **Policy deployed but commands still allowed** — check the **project picker**: the policy
+  must be deployed in the same project your credential is scoped to (or account-wide). Also
+  confirm mode is **enforce** — monitor records the deny but returns allow.
