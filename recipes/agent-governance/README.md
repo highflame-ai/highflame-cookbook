@@ -1,24 +1,27 @@
 # Agent governance · discover, adopt, and guard an agent from your IdP
 
-**The value:** *"Our teams are spinning up AI agents faster than we can track them.
+**The value:** _"Our teams are spinning up AI agents faster than we can track them.
 Each one is a new identity nobody issued, owns, or can revoke. We want to see every
 agent, put a real owner on it, and govern what it does — using the identity provider we
-already run, not a new silo."*
+already run, not a new silo."_
 
 Highflame connects to the identity provider you already use — **Google Workspace, Okta,
-Microsoft Entra, Copilot Studio** — discovers the agents already operating in your org,
+Microsoft Entra, Google Agent Engine (Vertex AI)** — discovers the agents already operating in your org,
 and lets you adopt each one into a registry with an accountable human owner. Once an agent
-is adopted and has a guardrail, every request it makes is evaluated *before* it reaches a
+is adopted and has a guardrail, every request it makes is evaluated _before_ it reaches a
 model or a tool. A request that violates policy is blocked, and the block is attributed to
 the agent and its owner:
 
 ```json
-{ "action": "block", "message": "Highflame Security has blocked this agent's request because it violated Enterprise Policy" }
+{
+  "action": "block",
+  "message": "Highflame Security has blocked this agent's request because it violated Enterprise Policy"
+}
 ```
 
-Identity is where governance starts, not where it stops. Okta and Entra can tell you *who*
-an agent is and *what it may connect to*. Highflame adds the next layer: *what the agent
-actually does at runtime*, and the evidence that it was governed.
+Identity is where governance starts, not where it stops. Okta and Entra can tell you _who_
+an agent is and _what it may connect to_. Highflame adds the next layer: _what the agent
+actually does at runtime_, and the evidence that it was governed.
 
 ---
 
@@ -28,11 +31,11 @@ Steps 1-4 are one-time setup in [Highflame Studio](https://studio.highflame.ai).
 the runnable proof below.
 
 1. **Connect your identity provider.** Studio → Connections → add **Google Workspace**.
-   The same flow works for **Okta**, **Microsoft Entra**, and **Copilot Studio** — connect
-   the one you run. No code required.
+   The same flow works for **Okta**, **Microsoft Entra**, and **Google Agent Engine
+   (Vertex AI)** — connect the one you run. No code required.
    <!-- screenshot: Studio → Connections → Add Google Workspace -->
 2. **Discover.** The connector surfaces the agents already operating in your org —
-   including ones nobody registered. Each shows up in the registry as *discovered*, waiting
+   including ones nobody registered. Each shows up in the registry as _discovered_, waiting
    to be governed.
    <!-- screenshot: registry Adoption inbox, N agents discovered -->
 3. **Adopt.** Bring the agent you want to govern into your registry and assign it an
@@ -91,7 +94,7 @@ Confirms the agent's policy-violating request is blocked.
   agent-gateway key shown on the adopted agent in the registry. With no key set, the script
   skips rather than failing.
 - **Works with the IdP you already run.** Google Workspace is the example here; the same
-  discover-and-adopt flow covers Okta, Microsoft Entra, and Copilot Studio. Highflame
+  discover-and-adopt flow covers Okta, Microsoft Entra, and Google Agent Engine. Highflame
   extends your existing identity provider to agents rather than replacing it.
 - **Make sure the guardrail is active** and your tenant's baseline authorization policy is
   loaded, so ordinary requests are allowed and only violations are blocked. The script warns

@@ -16,14 +16,14 @@ to watch the guardrail work for yourself.
 There's no single "correct" way to adopt Highflame — the right path depends on how your
 team already runs AI. Find your row:
 
-| You run… | Recipe | What you change | What you gain |
-| --- | --- | --- | --- |
-| **The Highflame SDK directly** | [`recipes/sdk/`](recipes/sdk/) | `pip install highflame` + four lines | Full guardrail coverage on every prompt and tool call; the foundation all other recipes build on |
-| **Coding agents** (Claude Code, Cursor, Codex…) behind **Tailscale Aperture** | [`recipes/aperture/`](recipes/aperture/) | Add one Highflame hook in Aperture | Block secret & PII leaks, redact PII, stop prompt injection — with per-developer identity on every request |
-| **LiteLLM** already | [`recipes/litellm/`](recipes/litellm/) | Add Highflame as an upstream provider, or as a guardrail hook | Keep your routing and budgets; add the security + identity layer |
-| **AI agents from an IdP** (Google Workspace, Okta, Entra…) | [`recipes/agent-governance/`](recipes/agent-governance/) | Connect your IdP; adopt agents; attach a guardrail | Discover every agent, give each an accountable owner, and govern what it does at runtime |
-| **The OpenAI SDK / LangChain** from scratch | _coming soon_ | Point your base URL at Highflame | Policy enforcement + observability, zero instrumentation |
-| **Your own agents / framework** | _coming soon_ | A guard call + a per-agent identity | Inline guardrails and per-agent identity |
+| You run…                                                                      | Recipe                                                   | What you change                                               | What you gain                                                                                              |
+| ----------------------------------------------------------------------------- | -------------------------------------------------------- | ------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| **The Highflame SDK directly**                                                | [`recipes/sdk/`](recipes/sdk/)                           | `pip install highflame` + four lines                          | Full guardrail coverage on every prompt and tool call; the foundation all other recipes build on           |
+| **Coding agents** (Claude Code, Cursor, Codex…) behind **Tailscale Aperture** | [`recipes/aperture/`](recipes/aperture/)                 | Add one Highflame hook in Aperture                            | Block secret & PII leaks, redact PII, stop prompt injection — with per-developer identity on every request |
+| **LiteLLM** already                                                           | [`recipes/litellm/`](recipes/litellm/)                   | Add Highflame as an upstream provider, or as a guardrail hook | Keep your routing and budgets; add the security + identity layer                                           |
+| **AI agents from an IdP** (Google Workspace, Okta, Entra…)                    | [`recipes/agent-governance/`](recipes/agent-governance/) | Connect your IdP; adopt agents; attach a guardrail            | Discover every agent, give each an accountable owner, and govern what it does at runtime                   |
+| **The OpenAI SDK / LangChain** from scratch                                   | _coming soon_                                            | Point your base URL at Highflame                              | Policy enforcement + observability, zero instrumentation                                                   |
+| **Your own agents / framework**                                               | _coming soon_                                            | A guard call + a per-agent identity                           | Inline guardrails and per-agent identity                                                                   |
 
 Each row is one self-contained recipe directory — read only the one you need.
 
@@ -43,15 +43,16 @@ a real key.
 
 ## Recipes
 
-| Recipe | For | Format | Status |
-| --- | --- | --- | --- |
-| [**Highflame SDK**](recipes/sdk/) | Evaluate prompts & tools directly; the foundation | Marimo notebooks | ✅ ready |
-| [**Code agents via Tailscale Aperture**](recipes/aperture/) | Securing Claude Code / Cursor / Codex behind Aperture | Python scripts | ✅ ready |
-| [**LiteLLM**](recipes/litellm/) | Teams already running LiteLLM | Python scripts | ✅ ready |
-| [**Overwatch policy catalog**](recipes/overwatch-policies/) | What Overwatch catches for IDE coding agents (Cursor, Claude Code, Copilot) | Reference doc | ✅ ready |
-| [**Agent governance**](recipes/agent-governance/) | Discovering, adopting & guarding agents from Google Workspace / Okta / Entra | Python script | ✅ ready |
-| OpenAI SDK / LangChain (greenfield) | New projects | — | coming soon |
-| Portkey | Teams on Portkey | — | coming soon |
+| Recipe                                                      | For                                                                                                                                     | Format           | Status      |
+| ----------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- | ---------------- | ----------- |
+| [**Highflame SDK**](recipes/sdk/)                           | Evaluate prompts & tools directly; the foundation                                                                                       | Marimo notebooks | ✅ ready    |
+| [**Code agents via Tailscale Aperture**](recipes/aperture/) | Securing Claude Code / Cursor / Codex behind Aperture                                                                                   | Python scripts   | ✅ ready    |
+| [**LiteLLM**](recipes/litellm/)                             | Teams already running LiteLLM                                                                                                           | Python scripts   | ✅ ready    |
+| [**Overwatch policy catalog**](recipes/overwatch-policies/) | What Overwatch catches for IDE coding agents (Cursor, Claude Code, Copilot)                                                             | Reference doc    | ✅ ready    |
+| [**Agent governance**](recipes/agent-governance/)           | Discovering, adopting & guarding agents from Google Workspace / Okta / Entra                                                            | Python script    | ✅ ready    |
+| [**Exelixis PoV**](recipes/exelixis-pov/)                   | An evaluation track: all 12 identity / authorization / DLP / injection use cases, each with an honest supported / partial / gap verdict | Python scripts   | ✅ ready    |
+| OpenAI SDK / LangChain (greenfield)                         | New projects                                                                                                                            | —                | coming soon |
+| Portkey                                                     | Teams on Portkey                                                                                                                        | —                | coming soon |
 
 ---
 
@@ -97,11 +98,11 @@ The SDK recipe (`recipes/sdk/`) is a series of four interactive
 [Marimo](https://marimo.io) notebooks — reactive Python cells you run and
 modify in the browser.
 
-| Notebook | What it covers |
-| --- | --- |
-| [`01_quickstart.py`](recipes/sdk/01_quickstart.py) | Connect, evaluate a prompt, `@shield.prompt` decorator |
-| [`02_tool_security.py`](recipes/sdk/02_tool_security.py) | Guard tool calls, `@shield.tool`, rich ToolContext |
-| [`03_agentic_sessions.py`](recipes/sdk/03_agentic_sessions.py) | Cross-turn session tracking, full OpenAI agent loop |
+| Notebook                                                       | What it covers                                                   |
+| -------------------------------------------------------------- | ---------------------------------------------------------------- |
+| [`01_quickstart.py`](recipes/sdk/01_quickstart.py)             | Connect, evaluate a prompt, `@shield.prompt` decorator           |
+| [`02_tool_security.py`](recipes/sdk/02_tool_security.py)       | Guard tool calls, `@shield.tool`, rich ToolContext               |
+| [`03_agentic_sessions.py`](recipes/sdk/03_agentic_sessions.py) | Cross-turn session tracking, full OpenAI agent loop              |
 | [`04_wave_d_decisions.py`](recipes/sdk/04_wave_d_decisions.py) | All five AARM decisions: allow / deny / modify / step_up / defer |
 
 ---
