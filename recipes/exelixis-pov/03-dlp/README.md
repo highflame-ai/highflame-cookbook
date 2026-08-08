@@ -56,9 +56,10 @@ A custom pattern participates fully in the redaction pipeline — you can block 
 
 1. **No Studio UI for custom regex yet** — you provision it via the Admin policy API (`POST /v2/admin/policy`, `category: "pii_types"`).
    Keyword libraries _do_ have a Studio UI (Detection Hub → keyword → Configure), but only substring + category are honored today — the UI's "regex" match mode and per-entry severity are inert, so use substring keyword matching.
-2. **The write REPLACES the built-in pattern set** — it does not merge.
+2. **The write REPLACES the built-in pattern set** — it does not merge (on current `main`).
    Adding one custom regex naively deletes all 70+ built-in PII patterns (and thus breaks UC10).
-   **Always read-modify-write:** fetch the current effective pattern set (a `dryrun` guard call returns it), append your pattern, and post the whole list back.
+   Until the fix lands, **read-modify-write:** fetch the current effective pattern set (a `dryrun` guard call returns it), append your pattern, and post the whole list back.
+   Being closed by [highflame-shield #381](https://github.com/highflame-ai/highflame-shield/pull/381), which adds an `extends_defaults: true` flag so custom entries layer on top of the built-ins (and override by name) — turning the demo into a one-line `{"extends_defaults": true, "entries": [...]}` config.
 
 **Provisioning `EXL-####` (Admin API):**
 

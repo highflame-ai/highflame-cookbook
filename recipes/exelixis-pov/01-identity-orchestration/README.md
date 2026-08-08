@@ -6,14 +6,14 @@ This track covers use cases 1–6.
 The runnable proof — [`identity_lifecycle.py`](identity_lifecycle.py) — proves the properties a single service key can prove: unique identity (UC2), short-lived and scope-limited credentials (UC4), and revocation ahead of expiry (UC5).
 Discovery (UC1), sub-agent attenuation (UC3), and the delegation chain (UC6) need two registered identities, so they run from Studio; the exact click-path is below.
 
-| UC  | Claim                                                   | Verdict      | Proof                                                                    |
-| --- | ------------------------------------------------------- | ------------ | ------------------------------------------------------------------------ |
-| 1   | Discover in-house, third-party, **and shadow** agents   | 🟡 Partial   | Studio → Registry (IdP connectors). Shadow-in-traffic **not** built.     |
-| 2   | Unique identity per agent, not a shared key             | 🟢 Supported | `identity_lifecycle.py` → the token's `sub` + a DB uniqueness constraint |
-| 3   | Sub-agents cannot exceed the parent's authority         | 🟢 Supported | Studio → ZeroID → delegate; over-broad scope → `400 invalid_scope`       |
-| 4   | Short-lived, task-scoped credentials                    | 🟡 Partial   | `identity_lifecycle.py` → 1h TTL + scope ceiling; task-scoping is coarse |
-| 5   | Revoke parent → collapse the tree                       | 🟢 Supported | `identity_lifecycle.py` (single token) + Studio (full cascade)           |
-| 6   | Traceable human → orchestrator → sub-agent → tool chain | 🟡 Partial   | Studio → Observatory → Audit; gateway leg drops headers                  |
+| UC  | Claim                                                   | Verdict      | Proof                                                                                     |
+| --- | ------------------------------------------------------- | ------------ | ----------------------------------------------------------------------------------------- |
+| 1   | Discover in-house, third-party, **and shadow** agents   | 🟡 Partial   | Studio → Registry (IdP connectors). Shadow-in-traffic **not** built.                      |
+| 2   | Unique identity per agent, not a shared key             | 🟢 Supported | `identity_lifecycle.py` → the token's `sub` + a DB uniqueness constraint                  |
+| 3   | Sub-agents cannot exceed the parent's authority         | 🟢 Supported | Studio → ZeroID → delegate; over-broad scope → `400 invalid_scope`                        |
+| 4   | Short-lived, task-scoped credentials                    | 🟡 Partial   | `identity_lifecycle.py` → 1h TTL + scope ceiling; task-scoping is coarse                  |
+| 5   | Revoke parent → collapse the tree                       | 🟢 Supported | `identity_lifecycle.py` (single token) + Studio (full cascade)                            |
+| 6   | Traceable human → orchestrator → sub-agent → tool chain | 🟡 Partial   | Studio → Observatory → Audit; gateway now forwards to Shield, Observatory columns pending |
 
 ---
 
@@ -96,7 +96,7 @@ Observatory answers _"what did this chain do?"_; ZeroID answers _"what was this 
 
 - The JWT `act` claim is **single-hop** (`{sub, iss}`), not a nested chain — one token proves one hop; the full tree is reconstructed via `mission_id` on the server, not carried in the bearer token.
 - Observatory keeps the delegation fields in a span-attribute map, so you can _read_ them per event but cannot yet _filter/group_ by `mission_id` or `delegation_depth`.
-- A tool call proxied through the **MCP gateway** drops the `X-Agent-*` delegation headers today, so that span loses `act_sub`/`mission_id`. Demo the direct agent → Shield path, not the gateway path, for UC6. Tracked as G-UC6.
+- A tool call proxied through the **MCP gateway** now forwards the `X-Agent-*` delegation headers to Shield (firehog #372/#528, merged), so the Shield decision on the gateway path carries `act_sub`/`mission_id`/`delegation_depth` — the earlier "demo the direct path only" caveat no longer applies to the Shield decision. Two narrower edges remain: the gateway does not relay the chain onward to the _upstream_ MCP server, and Observatory keeps these fields in a span-attribute map rather than typed columns (so you can read them per-event but not filter/group by them). Tracked as G-UC6a.
 
 ## UC1 · Discover every agent — partial
 

@@ -60,6 +60,7 @@ Concretely, on the platform today there is:
 **The honest bridge to say on the call:** _"Revoking the machine identity denies every delegated descendant in seconds. Wiring the human's IdP deactivation as the trigger for that revocation is the missing link — a webhook/SCIM adapter plus an owner-scoped revoke, not a new enforcement mechanism."_
 This is the single highest-value gap for the PoV, and it is an integration, not a research problem.
 Fully scoped in [`GAP-ANALYSIS.md`](../GAP-ANALYSIS.md) as **G-UC8** (four small, independent pieces across `highflame-studio`/`highflame-admin`, `zeroid`, and `highflame-shield`).
+The load-bearing piece — the owner-scoped cascade revocation an offboarding handler calls — is opened as [zeroid #273](https://github.com/highflame-ai/zeroid/pull/273) (`revoke_credentials_by_owner`); the last-mile Shield deny-set that denies the revoked tokens is already merged. What remains is the IdP trigger (a Clerk/SCIM webhook that calls it) — the "webhook/SCIM adapter" half of the bridge above.
 
 ## UC9 · Mid-execution objective redirection — partial
 

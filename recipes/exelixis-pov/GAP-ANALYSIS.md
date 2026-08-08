@@ -10,6 +10,33 @@ Any gap promoted to "supported" must land its verifying regression test first (p
 
 ---
 
+## Status refresh — re-verified against current `origin/main` (2026-08-08)
+
+The gap list below was first written from a point-in-time read. It has since been re-verified against each repo's current `origin/main`, and gap-closure work has started. The platform is moving, so a few items have changed:
+
+**Gaps already closed by the team (correct the earlier text below):**
+
+- **G-UC6b — the MCP gateway now forwards delegation headers to Shield.** firehog #372 / #528 merged: `src/client/shield.rs` projects `X-Agent-Act-Sub`, `X-Agent-Act-Iss`, `X-Agent-Mission-ID`, `X-Agent-Delegation-Depth`, `X-Agent-Status` on the decision call. So the earlier "demo the direct path, not the gateway" caveat for UC6 is **no longer needed for the Shield decision** — the chain reaches Shield on the gateway path. (Still open: the downstream MCP passthrough doesn't relay the chain to the upstream server, and Observatory keeps the fields in a span-attribute map rather than typed columns — so UC6 stays "partial," but for narrower reasons.)
+- **G-UC7 dead AuthZ PDP arm — the AuthZ side is retired** (highflame-authz PR #112). Only firehog's dead `src/client/authz.rs` remains, gated off by config; a low-risk deletion.
+
+**Gap-closure PRs opened this pass:**
+
+| PR                                                                                   | Gap                        | What it does                                                                                                                                              |
+| ------------------------------------------------------------------------------------ | -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [highflame-shield #381](https://github.com/highflame-ai/highflame-shield/pull/381)   | G-UC11 (merge-not-replace) | Adds `extends_defaults` so a custom PII pattern layers on top of the 70+ built-ins instead of silently replacing them                                     |
+| [highflame-studio #1395](https://github.com/highflame-ai/highflame-studio/pull/1395) | G-UC1c (Copilot tile)      | Moves the non-functional "Copilot Studio" connector tile to "coming soon" so it can't 400 in a demo                                                       |
+| [zeroid #273](https://github.com/highflame-ai/zeroid/pull/273)                       | G-UC8 (the #1 gap)         | Adds `revoke_credentials_by_owner` — the owner-scoped cascade primitive an IdP-offboarding handler calls; the last-mile Shield deny-set is already merged |
+
+**Gaps with in-flight team branches — coordinate, don't duplicate:**
+
+- **G-UC12a** (project `indirect_injection_score` on the gateway path) — branch `fix-guardrails-injection-score-validkeys` (needs a rebase onto the new `AgentOps` product work).
+- **INV-DET-002** (MCP server→client request classifier) — firehog carrier merged (#525); Shield classifier on `feat/mcp-input-request-detector`; policy signals on `feat/mcp-input-request-signals`; spec flip on `devops/spec-inv-det-002`. Land the three together, then flip the capability.
+- **G-UC10** (redactable secrets) — branch `feat/secret-redaction-spans-711` makes secrets redactable and stops persisting raw payloads.
+
+**Still fully open, sized below:** G-UC8 trigger wiring (webhook/SCIM), G-UC1 shadow-in-traffic + AWS connector, G-UC9 semantic drift, G-UC7 A2A-native action, G-UC6a Observatory columns, G-UC12b tools/list scan, the discovery MCP-prober one-liner (`syncer.New` → `mcptype.New(registry, mcptype.NewHTTPProber(client))`).
+
+---
+
 ## Priorities at a glance
 
 | Tier                                             | Gaps                                                                               | Why                                                                                           |
