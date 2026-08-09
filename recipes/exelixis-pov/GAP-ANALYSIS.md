@@ -33,18 +33,31 @@ The gap list below was first written from a point-in-time read. It has since bee
 - **INV-DET-002** (MCP server→client request classifier) — firehog carrier merged (#525); Shield classifier on `feat/mcp-input-request-detector`; policy signals on `feat/mcp-input-request-signals`; spec flip on `devops/spec-inv-det-002`. Land the three together, then flip the capability.
 - **G-UC10** (redactable secrets) — branch `feat/secret-redaction-spans-711` makes secrets redactable and stops persisting raw payloads.
 
-**Still fully open, sized below:** G-UC8 trigger wiring (webhook/SCIM), G-UC1 shadow-in-traffic + AWS connector, G-UC9 semantic drift, G-UC7 A2A-native action, G-UC6a Observatory columns, G-UC12b tools/list scan, the discovery MCP-prober one-liner (`syncer.New` → `mcptype.New(registry, mcptype.NewHTTPProber(client))`).
+**Still fully open, sized below:** G-UC8 trigger wiring (webhook/SCIM), G-UC1 shadow-in-traffic + AWS connector, G-UC9 semantic drift, G-UC7 A2A-native action, G-UC12b tools/list scan, the discovery MCP-prober one-liner (`syncer.New` → `mcptype.New(registry, mcptype.NewHTTPProber(client))`).
+
+## Status refresh — gap-closure round 2 (2026-08-10)
+
+The PRs from the 2026-08-08 pass are **merged**: shield #381 (extend-only custom PII), studio #1395 (Copilot tile), studio [#1396](https://github.com/highflame-ai/highflame-studio/pull/1396) (custom-PII pattern editor UI, closing G-UC11's Studio edge), and zeroid #273 (revoke-by-owner primitive; note it is merged but **not yet deployed on dev1** as of 2026-08-09).
+
+**G-UC6a closed:** [observatory PR #159](https://github.com/highflame-ai/highflame-observatory/pull/159) (CI green, awaiting review) promotes the six delegation span attributes (`acting_user_id`, `act_sub`, `act_iss`, `mission_id`, `agent_wimse_uri`, `delegation_depth`) to typed `hf_events` columns with skip-indexes, ViewQL dimensions/measures/filters, and REST filters on `/events` + the per-agent drill-down.
+Once merged and migration 022 runs on dev1, UC6 demos "every action in mission X" and "all depth ≥ 2 chains" as first-class Observatory queries.
+Historical rows carry empty defaults (forward-only backfill) — expected, not a bug.
+
+**G-UC4 re-verified and tracked:** [highflame-studio issue #1400](https://github.com/highflame-ai/highflame-studio/issues/1400) holds the full cross-repo plan.
+Important correction to the earlier text below: task-scoping **is** already enforced end-to-end — the coarse scope ceiling via Shield's `checkScopeCeiling` (live on dev1) and fine-grained RAR via the CIBA step-up path (RFC 9470 challenge → `bc-authorize`).
+The only real gap is that `authorization_details` is not accepted on the direct token-exchange endpoint, so per-task RAR cannot be minted up-front onto the task token.
+Demo-safe interim for the reconnect: show the scope ceiling + a `@step_up_required` RAR round-trip, and present #1400 as the scoped follow-up.
 
 ---
 
 ## Priorities at a glance
 
-| Tier                                             | Gaps                                                                               | Why                                                                                           |
-| ------------------------------------------------ | ---------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
-| **P0 — do before the PoV**                       | Copilot connector claim (done), fail-closed posture decision, policy-pack pre-load | Avoid an avoidable demo failure or an over-claim in the room                                  |
-| **P1 — the headline gaps the client will probe** | G-UC8 (human→agent revocation), G-UC1 (shadow-in-traffic), G-UC9 (semantic drift)  | These are the differentiated asks; a credible roadmap answer matters even where we can't demo |
-| **P2 — real, scoped, fast-follow**               | G-UC6, G-UC7 (A2A), G-UC11, G-UC12a/b, G-UC10, G-UC4                               | Each closes a "partial" into a "supported"; independently shippable                           |
-| **P3 — hygiene & spec drift**                    | doc drift, stale TTLs, capability-spec catch-up                                    | Low effort, high credibility with a technical buyer                                           |
+| Tier                                             | Gaps                                                                                       | Why                                                                                           |
+| ------------------------------------------------ | ------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------- |
+| **P0 — do before the PoV**                       | Copilot connector claim (done), fail-closed posture decision, policy-pack pre-load         | Avoid an avoidable demo failure or an over-claim in the room                                  |
+| **P1 — the headline gaps the client will probe** | G-UC8 (human→agent revocation), G-UC1 (shadow-in-traffic), G-UC9 (semantic drift)          | These are the differentiated asks; a credible roadmap answer matters even where we can't demo |
+| **P2 — real, scoped, fast-follow**               | G-UC7 (A2A), G-UC12a/b, G-UC10, G-UC4 (G-UC11 closed; G-UC6 nearly closed — see refreshes) | Each closes a "partial" into a "supported"; independently shippable                           |
+| **P3 — hygiene & spec drift**                    | doc drift, stale TTLs, capability-spec catch-up                                            | Low effort, high credibility with a technical buyer                                           |
 
 Size key: **S** ≈ days, **M** ≈ 1–2 weeks, **L** ≈ 3+ weeks / cross-team.
 
@@ -111,18 +124,18 @@ The anchor (`session_original_request`) is already captured and projected; the c
 
 ## P2 — close a "partial" into "supported" (fast-follow)
 
-### G-UC4 · Per-task (RAR) credentials
+### G-UC4 · Per-task (RAR) credentials — **tracked in [studio#1400](https://github.com/highflame-ai/highflame-studio/issues/1400)** (see 2026-08-10 refresh)
 
-Short-lived is supported; task-scoping is coarse OAuth scope.
-RFC 9396 Rich Authorization Requests exist but only on the CIBA (human-approval) endpoint, not the machine token endpoint.
-→ **`zeroid`** (`feat/rar-token-side` branch exists, not merged) + `highflame-shield` enforcement. Also file the two `planned` scope-enforcement caps (CAP-IDN-008 silent-narrowing→reject; CAP-IDN-009 read/write operation scopes). **M.**
+Short-lived is supported, and task-scoping is enforced today at two levels: the coarse scope ceiling (Shield `checkScopeCeiling`, live on dev1) and fine-grained RAR via the CIBA step-up path.
+The remaining gap is narrower than first written: `authorization_details` is accepted on `/bc-authorize` but not on the direct token-exchange endpoint, so per-task RAR cannot be minted up-front onto the task token.
+→ **`zeroid`** (`TokenInput` + validation reuse + JWT embed + child ⊆ parent attenuation) + **`highflame-shield`** (up-front RAR check beside the scope ceiling). Full plan, tests, and demo-safe interim in studio#1400. Also file the two `planned` scope-enforcement caps (CAP-IDN-008 silent-narrowing→reject; CAP-IDN-009 read/write operation scopes). **M.**
 
 ### G-UC6 · Delegation chain completeness
 
-Three independent edges:
+Three independent edges — two now closed:
 
-- Observatory can't filter/group by delegation fields (they're in a span-attribute map). → **`highflame-observatory`** ADD COLUMN + MV (precedent: `migrations/020_owner_user_id.sql`) + ViewQL dimensions. **M.**
-- The MCP gateway drops `X-Agent-*` delegation headers (firehog#372). → **`highflame-firehog`**. **M.**
+- ~~Observatory can't filter/group by delegation fields~~ **Closed by [observatory PR #159](https://github.com/highflame-ai/highflame-observatory/pull/159)** (typed columns + skip-indexes + ViewQL + REST filters; see 2026-08-10 refresh).
+- ~~The MCP gateway drops `X-Agent-*` delegation headers~~ **Closed** — firehog #372/#528 merged (see 2026-08-08 refresh).
 - Nested `act` claim (full chain in one token) — optional; `mission_id` reconstruction is a defensible alternative. → **`zeroid`**. **M.**
 
 ### G-UC7 · A2A-native authorization
@@ -139,12 +152,12 @@ Secrets are block-only; a `mask` effect on a secrets rule silently degrades to a
 Files are blocked-not-redacted (firehog#369). → **`highflame-firehog`**. **M.**
 Also: `RedactionEntry.Original` carries the raw PHI value on the audit response — gate it behind a flag before a HIPAA review asks. **`highflame-shield`**. **S.**
 
-### G-UC11 · Custom-pattern UX & merge semantics
+### G-UC11 · Custom-pattern UX & merge semantics — **CLOSED**
 
-Engine supported; two edges:
+Both edges are merged (see the 2026-08-10 refresh):
 
-- No Studio UI for custom regex (API-only today). → **`highflame-studio`** (`DetectorConfigPanel`). **M.**
-- The custom-pattern write **replaces** the built-in set instead of merging — a footgun. → **`highflame-shield`** (`pii_regex.go`, add `extends_defaults`/`custom_entries`). **S.**
+- Studio UI for custom regex: **studio #1396** adds the custom-pattern editor to `DetectorConfigPanel`.
+- Merge semantics: **shield #381** makes custom entries always extend the 70+ built-ins (extend-only; the replace footgun is gone).
 - Studio's PII panel exposes 10 of 70+ types and deploying it _narrows_ the detector — fix the panel to drive off the live detector list. → **`highflame-studio`**. **S.**
 - Keyword UI writes `match_mode`/`case_sensitive`/`severity` that Shield ignores — implement or disable them. → **`highflame-shield`** + **`highflame-studio`**. **S.**
 

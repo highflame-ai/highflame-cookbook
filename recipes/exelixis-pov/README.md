@@ -34,6 +34,7 @@ Where it is a genuine gap, we do not fake it: [`GAP-ANALYSIS.md`](GAP-ANALYSIS.m
 
 **Score:** 5 supported, 6 partial, 1 gap.
 Every "partial" has a working demo of its supported half and a named, scoped path to close the rest.
+Gap-closure is moving: UC11's both edges are merged (shield #381 + studio #1396), UC6's Observatory delegation columns are in review ([observatory #159](https://github.com/highflame-ai/highflame-observatory/pull/159)), and UC4's remaining edge is scoped in [studio#1400](https://github.com/highflame-ai/highflame-studio/issues/1400) — verdicts flip only after deploy + regression tests, per the ground rule; see the dated status refreshes in [`GAP-ANALYSIS.md`](GAP-ANALYSIS.md).
 
 ---
 
