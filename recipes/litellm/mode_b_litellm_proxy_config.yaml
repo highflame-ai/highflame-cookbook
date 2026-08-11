@@ -1,11 +1,21 @@
 # mode_b_litellm_proxy_config.yaml
 #
 # Mode B — LiteLLM keeps calling every provider directly; Highflame Shield is
-# consulted as a guardrail HOOK (pre/post), not in the routing path. Contrast
-# with mode_a_litellm_proxy_config.yaml, where Firehog is an upstream provider.
-# See README → "Mode B — Shield as a LiteLLM guardrail hook".
+# consulted as a guardrail HOOK around each call, not in the routing path.
+# Contrast with mode_a_litellm_proxy_config.yaml, where Firehog is an upstream
+# provider. See README → "Mode B — Shield as a LiteLLM guardrail hook".
 #
 # Start it with:  litellm --config mode_b_litellm_proxy_config.yaml
+#
+# The one guardrail class inspects all four points; pick the ones you want
+# under `mode:`:
+#   pre_call       → prompts before the LLM call        (blocks injections)
+#   post_call      → response text + the tool calls the model wants to make;
+#                    covers streaming responses too
+#   pre_mcp_call   → MCP tool name+arguments before the tool executes
+#   post_mcp_call  → MCP tool results before they reach the client
+# (during_call / during_mcp_call variants run in parallel with the call
+#  instead of before it — lower latency, but cannot block the request.)
 
 model_list:
   - model_name: gpt-4o
@@ -19,4 +29,17 @@ guardrails:
       # The class lives in mode_b_shield_guardrail.py (HighflameGuardrail);
       # it mints/refreshes the Shield JWT from HIGHFLAME_API_KEY via the SDK.
       guardrail: mode_b_shield_guardrail.HighflameGuardrail
-      mode: [pre_call, post_call] # enforce on the prompt and on the response
+      mode: [pre_call, post_call, pre_mcp_call, post_mcp_call]
+      # Recommended for coding agents (whole conversation resent every turn):
+      # scan only segments not already scanned in this session. Requires a
+      # session id on requests (litellm_session_id / metadata.session_id) and
+      # disables Shield redaction write-back per LiteLLM's contract.
+      # only_scan_new_messages: true
+
+# If your LiteLLM proxy also fronts MCP servers (the MCP gateway), the
+# *_mcp_call modes above inspect that traffic with no extra code, e.g.:
+#
+# mcp_servers:
+#   github:
+#     url: https://api.githubcopilot.com/mcp/
+#     auth_type: bearer_token

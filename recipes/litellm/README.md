@@ -16,7 +16,7 @@ to pick each.
 | --- | --- | --- |
 | **Idea** | Add Highflame's gateway as *one more provider* in your `model_list`. Route the traffic you want secured through it. | Keep LiteLLM calling every provider directly. Add a guardrail that consults Highflame Shield pre/post. |
 | **You keep LiteLLM doing** | routing, fallbacks, budgets — across all providers, including the Highflame one | routing, fallbacks, budgets, *and* all provider calls |
-| **Highflame sees** | full request/response for routed traffic → enforce + redact + traces + identity | the prompt and the response text → allow/deny/redact |
+| **Highflame sees** | full request/response for routed traffic → enforce + redact + traces + identity | prompts, responses (incl. streamed), tool calls, and MCP tool calls/results → allow/deny/redact |
 | **Code** | **zero** — pure LiteLLM config | a small `CustomGuardrail` class (uses the SDK to mint its JWT) |
 | **Pick when** | you're happy to send the secured routes through the gateway (recommended default) | you can't/won't reroute provider traffic and only want a policy verdict |
 
@@ -41,8 +41,15 @@ Endpoints default to prod/SaaS:
 
 | Var | Default | What |
 | --- | --- | --- |
-| `HIGHFLAME_GATEWAY_URL` | `https://gateway.highflame.ai/v1` | Firehog, OpenAI-compatible |
+| `HIGHFLAME_GATEWAY_URL` | `https://gateway.highflame.ai/llm/v1` | Firehog LLM dispatch, OpenAI-compatible |
 | `HIGHFLAME_BASE_URL` | `https://api.highflame.ai` | Shield/SDK base (guard at `/v1/shield/guard`) |
+| `HIGHFLAME_TOKEN_URL` | `https://auth.highflame.ai/oauth2/token` | AuthN key→JWT exchange (Mode B) |
+
+> **Note the `/llm` in the gateway URL.** Firehog serves its OpenAI-compatible LLM
+> dispatch under `/llm/{*rest}` — your SDK's base URL is `<host>/llm/v1`, and the SDK
+> appends `/chat/completions` etc. Pointing at `<host>/v1` returns 404.
+> If you override `HIGHFLAME_BASE_URL` to a non-SaaS environment (dev, self-hosted),
+> you must also override `HIGHFLAME_TOKEN_URL` — the SDK does not derive it.
 
 ---
 
@@ -96,7 +103,7 @@ import litellm, os
 
 resp = litellm.completion(
     model="openai/openai/gpt-4o",                       # double-prefix (see above)
-    api_base=os.environ["HIGHFLAME_GATEWAY_URL"],       # https://gateway.highflame.ai/v1
+    api_base=os.environ["HIGHFLAME_GATEWAY_URL"],       # https://gateway.highflame.ai/llm/v1
     api_key=os.environ["OPENAI_API_KEY"],               # rides through to OpenAI as the provider key
     extra_headers={"X-Highflame-APIKey": os.environ["HIGHFLAME_API_KEY"]},  # tenant + policy
     messages=[{"role": "user", "content": "Hello!"}],
@@ -116,12 +123,51 @@ raw API key — so the hook uses the Highflame SDK, which mints and refreshes th
 your `HIGHFLAME_API_KEY` automatically.
 
 See [`mode_b_shield_guardrail.py`](mode_b_shield_guardrail.py). It defines
-`HighflameGuardrail(CustomGuardrail)` with:
+`HighflameGuardrail(CustomGuardrail)` implementing LiteLLM's **unified
+`apply_guardrail` interface** (litellm ≥ 1.96) — one method that LiteLLM invokes
+with the extracted texts and tool calls from every endpoint shape, so the same
+class covers all four inspection points of an existing LiteLLM deployment:
 
-- `async_pre_call_hook` → `guard.aevaluate_prompt(..., mode="enforce")` on the user
-  prompt; raises to block on `deny`.
-- `async_post_call_success_hook` → evaluates the model's response (`content_type="response"`)
-  and can block or redact.
+| LiteLLM `mode:` | Traffic inspected | Shield evaluation |
+| --- | --- | --- |
+| `pre_call` | prompt text sent to the LLM — including the **results of locally-executed agent tools** (`role: "tool"` messages) — and the **tool definitions** (`tools=[...]`) | `process_prompt` per text segment; `call_tool` per unique tool definition (poisoning check, hash-deduped) |
+| `post_call` | response text — **streaming included** — and the tool calls the model wants to make | `process_prompt` on the response; `call_tool` per tool call |
+| `pre_mcp_call` | MCP tool name + arguments, before execution | `call_tool` |
+| `post_mcp_call` | MCP tool result text, before it reaches the client | `process_prompt` (response) |
+
+Decision mapping: `allow` proceeds; `modify` writes Shield's PII-redacted text back
+(LiteLLM logs it as a mask); `deny` / `step_up` / `defer` reject the call with a 400.
+
+### Local (client-executed) agent tools
+
+Coding agents execute their tools — shell commands, file edits — on the client, not
+in the proxy. Both halves of that loop still transit LiteLLM, and both are covered:
+
+1. **Before execution**: the model *proposes* the tool call in its response. `post_call`
+   evaluates it (`call_tool`) — a deny rejects the response, so the agent never
+   receives the call. For streams, LiteLLM runs a mandatory end-of-stream block
+   inspection over the assembled tool calls; note the raw tool-call deltas have
+   already reached a streaming client by then, so this blocks agents that (correctly)
+   wait for the stream to finish before executing.
+2. **After execution**: the tool's output rides back in the next request's
+   `role: "tool"` messages — `pre_call` scans it, so secrets or poisoned content a
+   tool pulled in are caught before they reach the model.
+
+Historical `tool_calls` in the resent conversation are *not* re-evaluated each turn
+(they were checked when proposed). For the text side of that same problem, enable
+**incremental session scanning** — coding agents resend the whole conversation every
+turn, and this skips segments already scanned in the session:
+
+```yaml
+guardrails:
+  - guardrail_name: highflame
+    litellm_params:
+      guardrail: mode_b_shield_guardrail.HighflameGuardrail
+      mode: [pre_call, post_call, pre_mcp_call, post_mcp_call]
+      only_scan_new_messages: true   # needs a session id on requests
+                                     # (litellm_session_id or metadata.session_id);
+                                     # skips Shield redaction write-back by design
+```
 
 Wire it into the LiteLLM proxy:
 
@@ -131,8 +177,11 @@ guardrails:
   - guardrail_name: highflame
     litellm_params:
       guardrail: mode_b_shield_guardrail.HighflameGuardrail
-      mode: pre_call          # and/or post_call
+      mode: [pre_call, post_call, pre_mcp_call, post_mcp_call]
 ```
+
+If the proxy also fronts MCP servers via LiteLLM's MCP gateway (`mcp_servers:` in the
+same config), the `*_mcp_call` modes inspect that traffic with no extra code.
 
 …or, for the pure SDK (no proxy), call the same guard inline around your `completion()` —
 the file includes a `guarded_completion()` helper that does exactly that.
