@@ -37,7 +37,11 @@ guardrails:
       # only_scan_new_messages: true
 
 # If your LiteLLM proxy also fronts MCP servers (the MCP gateway), the
-# *_mcp_call modes above inspect that traffic with no extra code, e.g.:
+# *_mcp_call modes above inspect that traffic with no extra code. Note that
+# MCP tool calls are then evaluated at BOTH the model-proposal point
+# (post_call) and the execution point (pre_mcp_call) — deliberate
+# defense-in-depth; see the README note if you prefer single-point
+# enforcement. Example:
 #
 # mcp_servers:
 #   github:

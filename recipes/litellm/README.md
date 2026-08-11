@@ -183,6 +183,18 @@ guardrails:
 If the proxy also fronts MCP servers via LiteLLM's MCP gateway (`mcp_servers:` in the
 same config), the `*_mcp_call` modes inspect that traffic with no extra code.
 
+> **Note — MCP tools are inspected at two points by design.** With all four modes on,
+> an MCP tool call is evaluated twice: once when the model *proposes* it (`post_call`,
+> blocking the proposal before the client acts) and again when it *executes* through
+> the MCP gateway (`pre_mcp_call`, the authoritative gate — it also catches calls the
+> model never proposed). Likewise the tool result is scanned at `post_mcp_call` and
+> again on the next turn's `pre_call` when it re-enters the conversation as a
+> `role: "tool"` message. This is defense-in-depth, at the cost of one extra Shield
+> round-trip (~50–100 ms) per MCP call and result. If your tools *all* route through
+> the MCP gateway and you prefer single-point enforcement, drop `post_call` down to
+> response-text-only by removing it — but keep it if any agents execute tools locally,
+> since local tools never reach the `*_mcp_call` hooks.
+
 …or, for the pure SDK (no proxy), call the same guard inline around your `completion()` —
 the file includes a `guarded_completion()` helper that does exactly that.
 
