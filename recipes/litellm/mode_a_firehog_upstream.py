@@ -3,7 +3,7 @@
 
 Keep using the LiteLLM SDK exactly as you do today. The only changes:
 
-  1. point `api_base` at Firehog (https://gateway.highflame.ai/v1),
+  1. point `api_base` at Firehog's LLM dispatch (https://gateway.highflame.ai/llm/v1),
   2. add the `X-Highflame-APIKey` header (tenant scope + policy enforcement),
   3. double the provider prefix in `model` so Firehog still sees `openai/gpt-4o`
      after LiteLLM strips its own leading `openai/`.
@@ -28,7 +28,7 @@ except ImportError:  # dotenv is optional
 
 import litellm
 
-GATEWAY_URL = os.environ.get("HIGHFLAME_GATEWAY_URL", "https://gateway.highflame.ai/v1")
+GATEWAY_URL = os.environ.get("HIGHFLAME_GATEWAY_URL", "https://gateway.highflame.ai/llm/v1")
 HIGHFLAME_API_KEY = os.environ.get("HIGHFLAME_API_KEY")
 PROVIDER_API_KEY = os.environ.get("OPENAI_API_KEY")
 

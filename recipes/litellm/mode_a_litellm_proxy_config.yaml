@@ -12,7 +12,7 @@ model_list:
   - model_name: gpt-4o-secured
     litellm_params:
       model: openai/openai/gpt-4o
-      api_base: os.environ/HIGHFLAME_GATEWAY_URL          # https://gateway.highflame.ai/v1
+      api_base: os.environ/HIGHFLAME_GATEWAY_URL          # https://gateway.highflame.ai/llm/v1
       api_key: os.environ/OPENAI_API_KEY                  # forwarded by Firehog to OpenAI
       extra_headers:
         X-Highflame-APIKey: os.environ/HIGHFLAME_API_KEY  # tenant scope + policy enforcement
