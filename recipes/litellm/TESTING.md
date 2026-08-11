@@ -1,14 +1,14 @@
 # LiteLLM × Shield — test matrix
 
 Status legend: ✅ validated against dev1 (2026-08-11, via litellm's real translation
-layer where noted) · ⬜ not yet exercised · ❌ known gap, not implemented.
+layer where noted — chat, Anthropic-messages, and Responses handlers) · ⬜ not yet exercised · ❌ known gap, not implemented.
 
 ## 1. Content surfaces
 
 | # | Surface | Direction | Hook (`mode:`) | Shield evaluation | Test cases | Status |
 | --- | --- | --- | --- | --- | --- | --- |
 | 1 | User prompt | request | `pre_call` | `process_prompt` / prompt | benign passes; injection detected | ✅ |
-| 2 | System / developer prompt | request | `pre_call` (same `texts` scan) | `process_prompt` / prompt | injection planted in system text detected | ⬜ scanned mechanically (in `texts`), no adversarial case run |
+| 2 | System / developer prompt | request | `pre_call` (same `texts` scan) | `process_prompt` / prompt | injection planted in system text detected | ✅ injection planted in system message reached Shield |
 | 3 | LLM response text | response | `post_call` | `process_prompt` / response | benign passes; policy-violating text blocked | ✅ |
 | 4 | LLM response text — **streaming** | response | `post_call` (sampled rounds + end-of-stream flush) | same as #3 | verdict fires; redacted text re-emitted as synthetic deltas | ⬜ needs live proxy |
 | 5 | LLM tool call (local/client-executed) | response | `post_call` | `call_tool` per proposed call | `rm -rf`, `curl \| sh` → `command_injection` signal fired (score 85) | ✅ |
@@ -35,9 +35,9 @@ layer where noted) · ⬜ not yet exercised · ❌ known gap, not implemented.
 | Case | Expected | Status |
 | --- | --- | --- |
 | Incremental scan, turn N+1 (unchanged history + 1 new msg) | only new segment scanned | ✅ |
-| Edited earlier message (hash changes) | edited segment re-scanned | ⬜ |
+| Edited earlier message (hash changes) | edited segment re-scanned | ✅ |
 | Blocked segment, client retries | re-checked (never marked scanned) | ⬜ |
-| No session id on request | falls back to full scan (logged) | ⬜ |
+| No session id on request | falls back to full scan (logged) | ✅ |
 | Historical `tool_calls` in resent conversation | **not** re-evaluated | ✅ |
 | Redaction + `only_scan_new_messages` together | scan-only, write-back skipped (litellm contract) | ⬜ |
 | Latency budget | measure Shield RTT added per hook point under agent-sized contexts | ⬜ |
@@ -47,11 +47,11 @@ layer where noted) · ⬜ not yet exercised · ❌ known gap, not implemented.
 | Case | Why | Status |
 | --- | --- | --- |
 | `/chat/completions` (OpenAI shape) | primary path | ✅ translation-layer level |
-| `/v1/messages` (Anthropic shape) | Claude Code & many agents speak this through LiteLLM | ⬜ (handler exists; needs proxy env with fastapi) |
-| `/responses` (OpenAI Responses API) | litellm transforms `input` → messages | ⬜ |
+| `/v1/messages` (Anthropic shape) | Claude Code & many agents speak this through LiteLLM | ✅ translation-layer (`AnthropicMessagesHandler`) |
+| `/responses` (OpenAI Responses API) | litellm transforms `input` → messages | ✅ translation-layer (`OpenAIResponsesHandler`) |
 | Live proxy e2e (`litellm --config` + guardrails YAML + MCP gateway) | validates YAML wiring, not just hook dispatch | ⬜ needs proxy extras + real provider key |
-| Parallel tool calls in one response | loop coverage | ⬜ |
-| Malformed tool arguments (non-JSON) | handled via `{"_raw": ...}` fallback | ⬜ unit case |
+| Parallel tool calls in one response | loop coverage | ✅ |
+| Malformed tool arguments (non-JSON) | handled via `{"_raw": ...}` fallback | ✅ |
 | `during_call` / `during_mcp_call` modes | parallel, non-blocking evaluation — observability-only posture | ⬜ |
 | JWT refresh over long-lived proxy | SDK auto-refresh under sustained traffic | ⬜ |
 
