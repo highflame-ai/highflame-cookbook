@@ -5,7 +5,11 @@
 # Contrast with mode_a_litellm_proxy_config.yaml, where Firehog is an upstream
 # provider. See README → "Mode B — Shield as a LiteLLM guardrail hook".
 #
-# Start it with:  litellm --config mode_b_litellm_proxy_config.yaml
+# Start it with (from this directory, so the guardrail module and .env resolve):
+#   litellm --config mode_b_litellm_proxy_config.yaml
+# Proxy extra: pip install 'litellm[proxy]'. With litellm 1.96.x, pip resolves a
+# fastapi (>=0.140) whose internals litellm's proxy doesn't support yet
+# (ImportError: get_flat_dependant) — also install 'fastapi<0.140'.
 #
 # The one guardrail class inspects all four points; pick the ones you want
 # under `mode:`:
@@ -30,6 +34,11 @@ guardrails:
       # it mints/refreshes the Shield JWT from HIGHFLAME_API_KEY via the SDK.
       guardrail: mode_b_shield_guardrail.HighflameGuardrail
       mode: [pre_call, post_call, pre_mcp_call, post_mcp_call]
+      # REQUIRED for always-on enforcement: LiteLLM guardrails are opt-in
+      # per request by default — without default_on, requests are guarded
+      # ONLY when the caller sends "guardrails": ["highflame"] in the body,
+      # and everything else passes through unguarded (silently).
+      default_on: true
       # Recommended for coding agents (whole conversation resent every turn):
       # scan only segments not already scanned in this session. Requires a
       # session id on requests (litellm_session_id / metadata.session_id) and

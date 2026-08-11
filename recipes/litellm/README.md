@@ -32,9 +32,20 @@ cp .env.example .env      # fill in your keys
 pip install -r requirements.txt
 ```
 
+> **Detection ≠ blocking — read this before you conclude "nothing is blocked."**
+> Shield's detectors always run and always emit signals, but whether a detection
+> *blocks* is decided by your tenant's policies. A fresh/eval tenant often ships with
+> a permissive baseline or the injection policy in **monitor** mode, so an injection
+> comes back `decision="allow"` **with** critical signals and a `policy_reason` naming
+> the policy that fired — detection is working; enforcement just isn't on. To make it
+> block, set the relevant policy to **enforce** mode in Studio → Guardrails → Policies
+> (or confirm mode with the guard response's `effective_mode` / `actual_decision`
+> fields). Every "blocked" example below assumes enforce-mode policies.
+
 You need:
 
-- `HIGHFLAME_API_KEY` — your tenant key (`hf_sk_…`). Get it from Studio → Settings → API Keys.
+- `HIGHFLAME_API_KEY` — your tenant service key (`hf_sk_…` or the newer `zid_sk_…` ZeroID
+  format — both work). Get it from Studio → Settings → API Keys.
 - A provider key you already use, e.g. `OPENAI_API_KEY` or `ANTHROPIC_API_KEY`.
 
 Endpoints default to prod/SaaS:
@@ -178,7 +189,21 @@ guardrails:
     litellm_params:
       guardrail: mode_b_shield_guardrail.HighflameGuardrail
       mode: [pre_call, post_call, pre_mcp_call, post_mcp_call]
+      default_on: true   # ⚠️ REQUIRED — see below
 ```
+
+> **⚠️ `default_on: true` is mandatory for always-on enforcement.** LiteLLM guardrails
+> are opt-in *per request* by default: without `default_on`, a guardrail runs **only**
+> when the caller adds `"guardrails": ["highflame"]` to the request body — every other
+> request passes through **unguarded and silently**. A proxy that omits this looks
+> guarded (the guardrail loads and logs) but enforces nothing. Verify with a control
+> test: point `HIGHFLAME_TOKEN_URL` at an unreachable host and confirm a plain request
+> *fails* (guardrail consulted) rather than sailing through to the provider.
+>
+> Start the proxy **from this directory** so `mode_b_shield_guardrail` and `.env`
+> resolve. The proxy extra (`pip install 'litellm[proxy]'`) currently needs
+> `fastapi<0.140` alongside litellm 1.96.x — a newer fastapi raises
+> `ImportError: get_flat_dependant` on startup.
 
 If the proxy also fronts MCP servers via LiteLLM's MCP gateway (`mcp_servers:` in the
 same config), the `*_mcp_call` modes inspect that traffic with no extra code.
