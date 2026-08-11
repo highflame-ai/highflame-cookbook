@@ -1,4 +1,9 @@
 # Mode A needs only litellm. Mode B also needs the Highflame SDK (to mint Shield's JWT).
-litellm>=1.50.0
-highflame>=0.1.0
+# litellm 1.96+ is required for the unified apply_guardrail interface (MCP + streaming
+# coverage); older proxies can still use Mode A unchanged.
+# highflame 0.3.21+ renders tool-call guard content as the arguments JSON, so
+# guarded tool calls are readable in Studio/Observatory instead of an opaque
+# "Tool call: <name>" placeholder.
+litellm>=1.96.0
+highflame>=0.3.21
 python-dotenv>=1.0.0

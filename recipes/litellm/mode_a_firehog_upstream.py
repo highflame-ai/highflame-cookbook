@@ -3,7 +3,7 @@
 
 Keep using the LiteLLM SDK exactly as you do today. The only changes:
 
-  1. point `api_base` at Firehog (https://gateway.highflame.ai/v1),
+  1. point `api_base` at Firehog's LLM dispatch (https://gateway.highflame.ai/llm/v1),
   2. add the `X-Highflame-APIKey` header (tenant scope + policy enforcement),
   3. double the provider prefix in `model` so Firehog still sees `openai/gpt-4o`
      after LiteLLM strips its own leading `openai/`.
@@ -28,7 +28,7 @@ except ImportError:  # dotenv is optional
 
 import litellm
 
-GATEWAY_URL = os.environ.get("HIGHFLAME_GATEWAY_URL", "https://gateway.highflame.ai/v1")
+GATEWAY_URL = os.environ.get("HIGHFLAME_GATEWAY_URL", "https://gateway.highflame.ai/llm/v1")
 HIGHFLAME_API_KEY = os.environ.get("HIGHFLAME_API_KEY")
 PROVIDER_API_KEY = os.environ.get("OPENAI_API_KEY")
 
@@ -58,7 +58,7 @@ def _require_keys() -> None:
         if not val
     ]
     if missing:
-        sys.exit(f"Set {', '.join(missing)} (see .env.example). Exiting without calling prod.")
+        sys.exit(f"Set {', '.join(missing)} (see .env.example). Exiting without calling the gateway.")
 
 
 def main() -> None:
@@ -70,6 +70,8 @@ def main() -> None:
     try:
         resp = highflame_completion(benign)
         print(f"  -> allowed: {resp.choices[0].message.content.strip()}\n")
+    except litellm.AuthenticationError as exc:
+        print(f"  -> provider auth error (gateway routing worked; check your provider key): {exc}\n")
     except Exception as exc:  # noqa: BLE001 — surface whatever the gateway returned
         print(f"  -> unexpected block/error: {exc}\n")
 
@@ -82,6 +84,10 @@ def main() -> None:
         resp = highflame_completion(attack)
         # If your policies run in monitor mode this still returns; enforce mode blocks.
         print(f"  -> allowed (monitor mode?): {resp.choices[0].message.content.strip()}\n")
+    except litellm.AuthenticationError as exc:
+        # Provider rejected the API key — the request made it THROUGH the gateway,
+        # so this is not a policy block. Don't confuse the two while evaluating.
+        print(f"  -> provider auth error (NOT a policy block): {exc}\n")
     except Exception as exc:  # noqa: BLE001
         print(f"  -> blocked by Highflame policy: {exc}\n")
 
