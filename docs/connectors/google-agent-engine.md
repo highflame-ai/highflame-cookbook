@@ -69,7 +69,7 @@ gcloud projects add-iam-policy-binding <PROJECT> \
 
 `roles/aiplatform.viewer` covers `reasoningEngines.list` and `reasoningEngines.get` — all the connector needs.
 
-![Google Agent Role](images/google_agent_role.png)
+![Google Agent Role](images/google_agent_roles.png)
 
 
 ---
@@ -212,8 +212,6 @@ Service-account key JSON:
 Then click:
 
 **Add connector**
-
-![Google Agent Engine connector](images/google_agent_engine_connector.png)
 
 ---
 
