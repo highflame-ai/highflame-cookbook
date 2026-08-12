@@ -1,0 +1,3 @@
+# The recipes use only the Python standard library (urllib, base64, json).
+# python-dotenv is an optional convenience for loading .env; nothing else is required.
+python-dotenv>=1.0.0

@@ -4,7 +4,7 @@
 The story this recipe proves end to end:
 
   1. You connect your identity provider (Google Workspace, Okta, Microsoft Entra,
-     Copilot Studio) to Highflame.
+     Google Agent Engine / Vertex AI) to Highflame.
   2. Highflame *discovers* the agents already operating in your org.
   3. You *adopt* the ones you want to govern into your registry and give each an
      accountable human owner.
@@ -23,6 +23,7 @@ returns:
 Runs against PROD by default. Needs HIGHFLAME_API_KEY: a service key you generate in
 Studio -> Settings -> API Keys (or the agent-gateway key shown on the adopted agent).
 """
+
 from __future__ import annotations
 
 import json
@@ -50,7 +51,9 @@ API_KEY = os.environ.get("HIGHFLAME_API_KEY")
 # With Highflame's identity gate enabled, this MUST be a known identity in your
 # Highflame org, or the request is denied at the identity layer before any content
 # policy runs.
-AGENT_IDENTITY = os.environ.get("HIGHFLAME_AGENT_IDENTITY") or "reporting-agent@example.com"
+AGENT_IDENTITY = (
+    os.environ.get("HIGHFLAME_AGENT_IDENTITY") or "reporting-agent@example.com"
+)
 
 # A representative request from the agent that violates policy: following an instruction,
 # the agent tries to ship data to an external endpoint using a hardcoded credential. The
@@ -101,8 +104,13 @@ def post_event(payload: dict) -> dict:
             try:
                 return json.loads(r.read())
             except json.JSONDecodeError:
-                return {"action": "error", "message": "invalid JSON response from server"}
-    except urllib.error.HTTPError as e:  # a block may arrive as a non-2xx with a JSON body
+                return {
+                    "action": "error",
+                    "message": "invalid JSON response from server",
+                }
+    except (
+        urllib.error.HTTPError
+    ) as e:  # a block may arrive as a non-2xx with a JSON body
         body = e.read().decode()
         try:
             return json.loads(body)
@@ -122,7 +130,9 @@ def main() -> int:
     print(json.dumps(resp, indent=2))
     if resp.get("action") == "block":
         print(f"\nHighflame blocked the agent's request -> {resp.get('message')!r}")
-        print("The block is attributed to the agent and its owner in Studio -> Observatory.")
+        print(
+            "The block is attributed to the agent and its owner in Studio -> Observatory."
+        )
     return 0
 
 
