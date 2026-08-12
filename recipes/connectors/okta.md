@@ -114,8 +114,6 @@ The discovery service connects to the configured Okta organization and discovers
 
 The sync response reports what was discovered.
 
-Discovered resources are added to the ZeroID **discovered** inventory with:
-
 ```text
 Origin:
 okta
