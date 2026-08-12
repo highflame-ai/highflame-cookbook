@@ -215,26 +215,6 @@ Then click:
 
 ---
 
-## Step 9 — Sync the Connector
-
-After adding the connector, select:
-
-**Sync now**
-
-The connector will use the read-only service account to discover deployed Agent Engine reasoning engines.
-
-The discovered reasoning engines should appear in the **Agents** registry as:
-
-```text
-Type:
-agent
-
-Segment:
-External
-```
-
----
-
 ## Connector Configuration Summary
 
 | Highflame Field              | GCP Value                                        |

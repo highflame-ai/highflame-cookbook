@@ -127,16 +127,6 @@ Then click:
 
 ---
 
-## Step 5 — Sync the Connector
-
-After adding the connector, select:
-
-**Sync now**
-
-The connector uses the service account with **Domain-Wide Delegation** to access the Google Workspace environment in read-only mode and discover the supported OAuth applications.
-
----
-
 ## Connector Configuration Summary
 
 | Highflame Field | Value |

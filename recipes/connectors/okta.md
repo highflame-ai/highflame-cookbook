@@ -88,39 +88,6 @@ Then click:
 
 ---
 
-## Connector Configuration
-
-The connector stores the following non-secret configuration:
-
-```json
-{
-  "org_url": "https://<your-org>.okta.com",
-  "discover_oauth_apps": true,
-  "discover_ai_agents": true
-}
-```
-
-The SSWS API token is stored separately as the connector secret.
-
----
-
-## Step 5 — Sync the Connector
-
-After adding the connector, trigger:
-
-**Sync now**
-
-The discovery service connects to the configured Okta organization and discovers the supported resources.
-
-The sync response reports what was discovered.
-
-```text
-Origin:
-okta
-```
-
----
-
 ## Connector Configuration Summary
 
 | Highflame Field | Value |
