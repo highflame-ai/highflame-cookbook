@@ -7,7 +7,8 @@ to watch the guardrail work for yourself.
 
 > **Looking for concepts, architecture, and product docs?** Those live at
 > **[docs.highflame.ai](https://docs.highflame.ai)**. This repo is the hands-on,
-> run-it-yourself companion.
+> run-it-yourself companion. Registry connector setup (Entra, AWS, GCP, Okta) lives
+> in [`docs/connectors/`](docs/connectors/).
 
 ---
 
