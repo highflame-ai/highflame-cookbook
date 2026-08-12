@@ -30,6 +30,8 @@ Go to:
 
 Create a new API token.
 
+![ Okta token](images/okta_token.png)
+
 Use a descriptive name such as:
 
 ```text
@@ -79,8 +81,6 @@ https://<your-org>.okta.com
 API token (SSWS):
 <paste the Okta API token>
 ```
-
-![Okta connector](images/okta_connector.png)
 
 Then click:
 
