@@ -234,31 +234,6 @@ Then click:
 
 ---
 
-## Configuration Flow
-
-```text
-Microsoft Entra ID
-        │
-        ▼
-App Registration
-        │
-        ├── Tenant ID
-        ├── Client ID
-        ├── API Permissions
-        └── Client Secret
-                │
-                ▼
-        Highflame Registry
-                │
-                ▼
-        Microsoft Entra Connector
-                │
-                ▼
-        Discovery / Inventory
-```
-
----
-
 ## Security Notes
 
 * Use **Application permissions** for the service-to-service connector.

@@ -247,45 +247,6 @@ External
 
 ---
 
-## Configuration Flow
-
-```text
-Google Cloud
-      │
-      ▼
-GCP Project
-      │
-      ├── Vertex AI API
-      │
-      ├── Agent Engine
-      │      └── Reasoning Engines
-      │
-      └── Service Account
-              │
-              ├── discovery-ro
-              │
-              ├── roles/aiplatform.viewer
-              │
-              └── discovery-ro.json
-                      │
-                      ▼
-              Highflame Registry
-                      │
-                      ▼
-             Google Agent Engine
-                  Connector
-                      │
-                      ▼
-                   Sync now
-                      │
-                      ▼
-              Agents Registry
-                      │
-                      └── External
-```
-
----
-
 ## Security Notes
 
 * Use a dedicated `discovery-ro` service account for Highflame discovery.

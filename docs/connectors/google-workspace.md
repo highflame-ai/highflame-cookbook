@@ -149,38 +149,6 @@ The connector uses the service account with **Domain-Wide Delegation** to access
 
 ---
 
-## Configuration Flow
-
-```text
-Google Cloud
-    │
-    ├── Admin SDK API
-    │
-    └── Service Account
-            │
-            └── OAuth Client ID
-                    │
-                    ▼
-            Google Admin Console
-                    │
-                    └── Domain-Wide Delegation
-                            │
-                            ├── admin.directory.user.readonly
-                            └── admin.directory.user.security
-                                    │
-                                    ▼
-                            Highflame Registry
-                                    │
-                                    ▼
-                            Google Workspace
-                               Connector
-                                    │
-                                    ▼
-                                Sync Now
-```
-
----
-
 ## Security Notes
 
 - Use a dedicated service account for Highflame discovery.
