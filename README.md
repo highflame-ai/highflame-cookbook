@@ -7,8 +7,9 @@ to watch the guardrail work for yourself.
 
 > **Looking for concepts, architecture, and product docs?** Those live at
 > **[docs.highflame.ai](https://docs.highflame.ai)**. This repo is the hands-on,
-> run-it-yourself companion. Registry connector setup (Entra, AWS, GCP, Okta) lives
-> in [`docs/connectors/`](docs/connectors/).
+> run-it-yourself companion. Registry connector setup for Entra, Okta, Google
+> Workspace, and Google Agent Engine lives in
+> [`recipes/connectors/`](recipes/connectors/).
 
 ---
 
@@ -23,6 +24,7 @@ team already runs AI. Find your row:
 | **Coding agents** (Claude Code, Cursor, Codex…) behind **Tailscale Aperture** | [`recipes/aperture/`](recipes/aperture/) | Add one Highflame hook in Aperture | Block secret & PII leaks, redact PII, stop prompt injection — with per-developer identity on every request |
 | **LiteLLM** already | [`recipes/litellm/`](recipes/litellm/) | Add Highflame as an upstream provider, or as a guardrail hook | Keep your routing and budgets; add the security + identity layer |
 | **AI agents from an IdP** (Google Workspace, Okta, Entra…) | [`recipes/agent-governance/`](recipes/agent-governance/) | Connect your IdP; adopt agents; attach a guardrail | Discover every agent, give each an accountable owner, and govern what it does at runtime |
+| **Registry connectors** (Entra, Okta, Google Workspace, Agent Engine) | [`recipes/connectors/`](recipes/connectors/) | Configure the provider-side app / IAM / token Highflame needs | Wire Studio discovery so agents show up ready to adopt |
 | **The OpenAI SDK / LangChain** from scratch | _coming soon_ | Point your base URL at Highflame | Policy enforcement + observability, zero instrumentation |
 | **Your own agents / framework** | _coming soon_ | A guard call + a per-agent identity | Inline guardrails and per-agent identity |
 
@@ -51,6 +53,7 @@ a real key.
 | [**LiteLLM**](recipes/litellm/) | Teams already running LiteLLM | Python scripts | ✅ ready |
 | [**Overwatch policy catalog**](recipes/overwatch-policies/) | What Overwatch catches for IDE coding agents (Cursor, Claude Code, Copilot) | Reference doc | ✅ ready |
 | [**Agent governance**](recipes/agent-governance/) | Discovering, adopting & guarding agents from Google Workspace / Okta / Entra | Python script | ✅ ready |
+| [**Registry connectors**](recipes/connectors/) | Provider setup for Entra, Okta, Google Workspace, Google Agent Engine | Reference docs | ✅ ready |
 | OpenAI SDK / LangChain (greenfield) | New projects | — | coming soon |
 | Portkey | Teams on Portkey | — | coming soon |
 
