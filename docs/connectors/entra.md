@@ -12,7 +12,7 @@ Go to:
 
 **Azure Portal → Microsoft Entra ID → App registrations → New registration**
 
-![New registration](images/entra_new_registartion.png)
+![New registration](images/entra_new_registration.png)
 
 For the customer setup, use:
 
