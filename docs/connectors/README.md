@@ -11,7 +11,7 @@ connector**, then pick the provider you run. Each guide below is the work you do
 | --- | --- | --- |
 | **Microsoft Entra** | [entra.md](entra.md) | App registration, API permissions, client credentials |
 | **AWS** | [aws.md](aws.md) | IAM role / access for agent discovery |
-| **GCP** | [gcp.md](gcp.md) | Service account and APIs for agent discovery |
+| **Google (Agent Engine)** | [google-agent-engine.md](google-agent-engine.md) | Service account and APIs for agent discovery |
 | **Okta** | [okta.md](okta.md) | OIDC / API app for agent discovery |
 
 After the connector is healthy, continue with
