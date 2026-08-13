@@ -27,10 +27,11 @@ actually does at runtime*, and the evidence that it was governed.
 Steps 1-4 are one-time setup in [Highflame Studio](https://studio.highflame.ai). Step 5 is
 the runnable proof below.
 
-1. **Connect your identity provider.** Studio → Connections → add **Google Workspace**.
-   The same flow works for **Okta**, **Microsoft Entra**, and **Copilot Studio** — connect
-   the one you run. No code required.
-   <!-- screenshot: Studio → Connections → Add Google Workspace -->
+1. **Connect your identity provider.** Studio → Registry → Connections → add the provider
+   you run (**Google Workspace**, **Okta**, **Microsoft Entra**, **Google Agent Engine**,
+   or **Copilot Studio**). Provider-side setup (app registration, IAM, scopes) is
+   documented under [`recipes/connectors/`](../connectors/).
+   <!-- screenshot: Studio → Registry → Connections → Add -->
 2. **Discover.** The connector surfaces the agents already operating in your org —
    including ones nobody registered. Each shows up in the registry as *discovered*, waiting
    to be governed.
