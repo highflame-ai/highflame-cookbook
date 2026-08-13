@@ -48,6 +48,20 @@ Important correction to the earlier text below: task-scoping **is** already enfo
 The only real gap is that `authorization_details` is not accepted on the direct token-exchange endpoint, so per-task RAR cannot be minted up-front onto the task token.
 Demo-safe interim for the reconnect: show the scope ceiling + a `@step_up_required` RAR round-trip, and present #1400 as the scoped follow-up.
 
+## Status refresh — gap-closure round 3 (2026-08-13): G-UC8 trigger chain merged
+
+**G-UC8 — the #1 gap — is no longer a gap; UC8 flips 🔴 → 🟡.** The whole trigger chain shipped since the round-2 refresh:
+
+- **ZeroID offboard-by-owner** (zeroid #280, merged): one internal endpoint composing identity deactivation (API keys swept, credentials cascade-revoked incl. delegated descendants, CAE retirement) with the owner-scoped straggler sweep (`revoke_credentials_by_owner`, the round-1 primitive). Idempotent; empty-owner injection guard in service AND SQL.
+- **Admin SCIM deactivation receiver** (merged, **deployed on dev1** — in-cluster probe answers a bearer-gated SCIM 401, build 2026-08-13): per-tenant `hfscim_` tokens (SHA-256 at rest, plaintext once), `/scim/v2` Users linking + PATCH/PUT/DELETE deactivation with the Okta/Entra shape zoo unit-pinned, and a durable offboarding **outbox** — enqueued before the SCIM ack, `FOR UPDATE SKIP LOCKED` worker, no terminal failed state. Re-activation restores membership only (ADR 0028 D6).
+- **Full #1220 provider** ([admin#1313](https://github.com/highflame-ai/highflame-admin/pull/1313), in CI): `POST /Users` create (profile minted only for platform-unknown emails; global profiles never mutated by a tenant stream), real listing, `/Groups` CRUD+PATCH re-expanding into per-user declarative snapshots that the ADR 0015 mapping engine materializes into org roles + project grants. Deactivated members accumulate group state but materialize nothing until reactivation.
+- **Spec entries** ([architecture#287](https://github.com/highflame-ai/highflame-architecture/pull/287)): CAP-TEN-006 (mapping materialization) + CAP-TEN-007 (full SCIM provisioning), both `planned` until the regressions land.
+- **Runnable proof** added to track 02: `scim_provisioning.py` drives the receiver as the IdP (create → link → group pushes in both vendor PATCH shapes → deactivate → reactivate).
+
+**Correction to the G-UC8 table below (historical):** the shipped design needed neither the Clerk-webhook piece (SCIM is the standard surface every IdP already speaks — ADR 0028 rejected per-vendor webhooks) nor, for enforcement, the Cedar `owner_status` backstop (revocation is the mechanism; the backstop remains a nice-to-have defense-in-depth item).
+
+**What keeps UC8 at 🟡 instead of 🟢** (the ground rule — deploy + regression): the public `/scim/v2` ingress ([cloud#2274](https://github.com/highflame-ai/highflame-cloud/pull/2274) — the receiver is live in-cluster but an external IdP cannot reach it yet), admin#1313 merge + deploy, and the INV-IDN-010 regression (SCIM-deactivate → owned agent's token denied AND its service key can't mint). Studio UI for token minting + offboarding evidence is the remaining UX follow-up.
+
 ---
 
 ## Priorities at a glance
@@ -55,7 +69,7 @@ Demo-safe interim for the reconnect: show the scope ceiling + a `@step_up_requir
 | Tier                                             | Gaps                                                                                       | Why                                                                                           |
 | ------------------------------------------------ | ------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------- |
 | **P0 — do before the PoV**                       | Copilot connector claim (done), fail-closed posture decision, policy-pack pre-load         | Avoid an avoidable demo failure or an over-claim in the room                                  |
-| **P1 — the headline gaps the client will probe** | G-UC8 (human→agent revocation), G-UC1 (shadow-in-traffic), G-UC9 (semantic drift)          | These are the differentiated asks; a credible roadmap answer matters even where we can't demo |
+| **P1 — the headline gaps the client will probe** | G-UC8 (**closed** — round 3), G-UC1 (shadow-in-traffic), G-UC9 (semantic drift)            | These are the differentiated asks; a credible roadmap answer matters even where we can't demo |
 | **P2 — real, scoped, fast-follow**               | G-UC7 (A2A), G-UC12a/b, G-UC10, G-UC4 (G-UC11 closed; G-UC6 nearly closed — see refreshes) | Each closes a "partial" into a "supported"; independently shippable                           |
 | **P3 — hygiene & spec drift**                    | doc drift, stale TTLs, capability-spec catch-up                                            | Low effort, high credibility with a technical buyer                                           |
 
@@ -89,9 +103,9 @@ Each track README names the packs it needs; load them (enforce or monitor) in th
 
 ## P1 — headline gaps
 
-### G-UC8 · Human deactivation → agent denial _(the #1 gap)_
+### G-UC8 · Human deactivation → agent denial _(the #1 gap)_ — **CLOSED in round 3; see the 2026-08-13 refresh above**
 
-**Use case 8.** An agent acting for a deactivated/revoked human is not automatically denied.
+**Use case 8** _(historical text below; the trigger chain has since merged)_. An agent acting for a deactivated/revoked human is not automatically denied.
 The revocation _mechanism_ is fully built (revoke an identity → its whole delegation tree dies in <5s); the missing piece is the _trigger_ from the human's IdP lifecycle. Four small, independent pieces:
 
 | Piece                                                                                                            | Repo                                        | Capability                                        | Size |

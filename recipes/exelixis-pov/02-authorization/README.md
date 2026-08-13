@@ -3,13 +3,13 @@
 **The value:** _"We don't want an after-the-fact audit log of what our agents did. We want every tool call, every model request, and every agent-to-agent hop checked against policy_ before _it runs — and an agent acting for someone we just deactivated should be denied automatically. And if an agent gets quietly redirected toward a goal we never authorized, we want to know."_
 
 This track covers use cases 7, 8, 9.
-The runnable proof — [`pre_execution_and_revocation.py`](pre_execution_and_revocation.py) — shows a violating tool call and model request denied at the decision point, an agent's calls denied the moment its credential is revoked, and an in-session objective redirect caught.
+Two runnable proofs: [`pre_execution_and_revocation.py`](pre_execution_and_revocation.py) shows a violating tool call and model request denied at the decision point, an agent's calls denied the moment its credential is revoked, and an in-session objective redirect caught; [`scim_provisioning.py`](scim_provisioning.py) drives the inbound SCIM 2.0 provider as if it were Okta/Entra — the IdP trigger UC8 was missing.
 
-| UC  | Claim                                                              | Verdict                                       |
-| --- | ------------------------------------------------------------------ | --------------------------------------------- |
-| 7   | Every tool call / model request / A2A hop checked before execution | 🟢 Supported (A2A partial)                    |
-| 8   | Agent for a deactivated **human** is auto-denied                   | 🔴 Gap (mechanism built; IdP trigger missing) |
-| 9   | Detect mid-execution objective redirection                         | 🟡 Partial                                    |
+| UC  | Claim                                                              | Verdict                                                     |
+| --- | ------------------------------------------------------------------ | ----------------------------------------------------------- |
+| 7   | Every tool call / model request / A2A hop checked before execution | 🟢 Supported (A2A partial)                                  |
+| 8   | Agent for a deactivated **human** is auto-denied                   | 🟡 Partial (trigger + mechanism merged; regression pending) |
+| 9   | Detect mid-execution objective redirection                         | 🟡 Partial                                                  |
 
 **Policy prerequisite:** UC7 and UC9 need active guardrail packs — **Tool Permissioning**, **Agentic Safety**, and (for UC9) the injection defaults.
 Shield only runs a detector if a live policy references its signal, so install the packs **before** the demo.
@@ -24,6 +24,10 @@ cd recipes/exelixis-pov
 cp .env.example .env          # set HIGHFLAME_API_KEY
 pip install -r requirements.txt
 python 02-authorization/pre_execution_and_revocation.py
+
+# The UC8 trigger proof additionally needs the SCIM base URL + a per-tenant
+# hfscim_ token (see .env.example; skips cleanly when unset):
+python 02-authorization/scim_provisioning.py
 ```
 
 ---
@@ -43,24 +47,24 @@ There is no A2A-native Cedar action (`a2a_send`/`a2a_receive`), the agent-card f
 So: A2A message text is checked; the A2A protocol surface is not fully governed.
 Tracked as G-UC7.
 
-## UC8 · Deactivated human → agent denied — gap (as literally worded)
+## UC8 · Deactivated human → agent denied — partial (trigger shipped; regression pending)
 
-**What is fully built (and demoed here):** revoke an agent's identity and its next call is denied within seconds; for a parent, the entire delegation tree collapses in one atomic cascade.
+**The mechanism (long since real, demoed here):** revoke an agent's identity and its next call is denied within seconds; for a parent, the entire delegation tree collapses in one atomic cascade.
 A critical CAE signal triggers the same revocation automatically.
-This is the _mechanism_ the use case needs, and it is real.
 
-**What is missing:** nothing today maps a **human's** deactivation in the IdP to that revocation.
-Concretely, on the platform today there is:
+**The trigger (the former #1 gap — now merged):** admin hosts an inbound **SCIM 2.0 provisioning provider** ([ADR 0028](https://github.com/highflame-ai/highflame-architecture/blob/main/adrs/0028-scim-offboarding-receiver.md)).
+A tenant org-admin mints a per-tenant `hfscim_` bearer token, pastes it into Okta/Entra provisioning, and from then on the IdP pushes user lifecycle changes directly:
 
-- no `user.deleted` / `user.updated(locked)` / `organizationMembership.deleted` webhook handler (only `user.created` is handled),
-- no SCIM 2.0 receiver for Okta/Entra human lifecycle,
-- no "revoke every credential owned by this human" operation, and
-- no principal-status attribute reaching Cedar, so a policy cannot even `forbid when owner is deactivated` as a backstop.
+- `active:false` (or DELETE) flips the membership **and durably enqueues an offboarding** — an outbox row written before the SCIM ack, driven by a worker to ZeroID's `offboard-by-owner`: every agent identity the human owns is deactivated, API keys swept, credentials cascade-revoked (delegated descendants via the `parent_jti` chain included), and Shield's deny-set updates within seconds. A transient outage delays an offboarding; it can never drop one.
+- Re-activation restores **membership only** — agents are never silently resurrected; a returning human re-enables them deliberately (ADR 0028 D6).
+- The full provider ([admin#1313](https://github.com/highflame-ai/highflame-admin/pull/1313)) adds `POST /Users` create, real listing, and `/Groups` — group pushes re-materialize the member's **project access** deterministically from tenant-configured group mappings (ADR 0015). Provisioning and deprovisioning are both IdP-driven, with no Clerk in the auth path.
 
-**The honest bridge to say on the call:** _"Revoking the machine identity denies every delegated descendant in seconds. Wiring the human's IdP deactivation as the trigger for that revocation is the missing link — a webhook/SCIM adapter plus an owner-scoped revoke, not a new enforcement mechanism."_
-This is the single highest-value gap for the PoV, and it is an integration, not a research problem.
-Fully scoped in [`GAP-ANALYSIS.md`](../GAP-ANALYSIS.md) as **G-UC8** (four small, independent pieces across `highflame-studio`/`highflame-admin`, `zeroid`, and `highflame-shield`).
-The load-bearing piece — the owner-scoped cascade revocation an offboarding handler calls — is opened as [zeroid #273](https://github.com/highflame-ai/zeroid/pull/273) (`revoke_credentials_by_owner`); the last-mile Shield deny-set that denies the revoked tokens is already merged. What remains is the IdP trigger (a Clerk/SCIM webhook that calls it) — the "webhook/SCIM adapter" half of the bridge above.
+**The runnable proof:** [`scim_provisioning.py`](scim_provisioning.py) plays the IdP — discovery probe, create, link, group pushes in both the Entra and Okta PATCH shapes, deactivate (the trigger), reactivate (membership-only).
+Compose it with the revocation demo above and the story is end-to-end: HR deactivates a human in Okta → within seconds every agent acting on their behalf is denied at the decision point.
+
+**Why "partial", not "supported":** the verdict flips only after deploy + regression, per this track's ground rule.
+The deactivation slice is deployed on dev1 (in-cluster verified 2026-08-13); the public ingress for `/scim/v2` ([cloud#2274](https://github.com/highflame-ai/highflame-cloud/pull/2274)) and the capability-flipping regression (`INV-IDN-010`: SCIM-deactivate a user → an owned agent's previously-valid token is denied AND its service key can no longer mint tokens) are still in flight.
+One honest edge remains open from the original list: no principal-status attribute reaches Cedar yet, so a policy cannot `forbid when owner is deactivated` as a _defense-in-depth backstop_ — the revocation path above is the enforcement, and it does not depend on it.
 
 ## UC9 · Mid-execution objective redirection — partial
 
@@ -83,3 +87,4 @@ python 02-authorization/smoke_test.py
 ```
 
 Confirms a violating action is denied pre-execution and a revoked credential is denied on its next call.
+With `HIGHFLAME_SCIM_URL` + `HIGHFLAME_SCIM_TOKEN` set it also round-trips the SCIM provider (create → deactivate → verify active:false); unset, that leg notes itself skipped without failing.

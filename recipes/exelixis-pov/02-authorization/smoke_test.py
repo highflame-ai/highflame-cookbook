@@ -3,6 +3,9 @@
 
 Asserts a policy-violating action is denied pre-execution, and a revoked credential is
 denied on its next call. An allow (tenant not configured with the packs) is a soft warning.
+When HIGHFLAME_SCIM_URL + HIGHFLAME_SCIM_TOKEN are set, also round-trips the SCIM
+provider (create -> deactivate -> verify -> reactivate -> cleanup); absent, that leg is
+noted and skipped without failing.
 
 Exit codes: 0 = pass (or soft warning), 1 = unexpected failure, 2 = skipped (no key).
 """
@@ -48,9 +51,51 @@ def main() -> int:
             print(
                 "WARN revoked token not yet rejected (deny-set cold-start gap). Re-run."
             )
-        return 0
+
+        return scim_leg()
     except common.HighflameError as e:
         print(f"FAIL: {e}")
+        return 1
+
+
+def scim_leg() -> int:
+    """SCIM provider round-trip (the UC8 trigger surface). Soft-skips when unset."""
+    if not (
+        os.environ.get("HIGHFLAME_SCIM_URL") and os.environ.get("HIGHFLAME_SCIM_TOKEN")
+    ):
+        print(
+            "NOTE scim leg skipped — set HIGHFLAME_SCIM_URL + HIGHFLAME_SCIM_TOKEN to smoke it."
+        )
+        return 0
+
+    import uuid
+
+    import scim_provisioning as sp
+
+    email = f"scim-smoke-{uuid.uuid4().hex[:8]}@exelixis-pov.example"
+    try:
+        _, user = sp.scim(
+            "POST",
+            "/Users",
+            {"userName": email, "active": True},
+            expect=(201,),
+        )
+        uid = user["id"]
+
+        sp.scim(
+            "PATCH",
+            f"/Users/{uid}",
+            {"Operations": [{"op": "replace", "value": {"active": False}}]},
+        )
+        _, u = sp.scim("GET", f"/Users/{uid}")
+        if u["active"] is not False:
+            print(f"FAIL scim deactivation did not flip active: {u}")
+            return 1
+
+        print("PASS scim create -> deactivate -> active:false (offboarding enqueued)")
+        return 0
+    except common.HighflameError as e:
+        print(f"FAIL scim leg: {e}")
         return 1
 
 

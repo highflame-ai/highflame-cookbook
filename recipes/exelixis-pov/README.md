@@ -22,19 +22,19 @@ Where it is a genuine gap, we do not fake it: [`GAP-ANALYSIS.md`](GAP-ANALYSIS.m
 | 5   | Revoking a parent identity **collapses the whole delegation tree**                 | 🟢 Supported  | [01](01-identity-orchestration/) |
 | 6   | A **traceable chain**: human → workflow → orchestrator → sub-agent → tool call     | 🟡 Partial    | [01](01-identity-orchestration/) |
 | 7   | Every tool call, model request, and A2A hop is **checked before execution**        | 🟢 Supported¹ | [02](02-authorization/)          |
-| 8   | An agent acting for a **deactivated human** is automatically denied                | 🔴 Gap²       | [02](02-authorization/)          |
+| 8   | An agent acting for a **deactivated human** is automatically denied                | 🟡 Partial²   | [02](02-authorization/)          |
 | 9   | Detect **mid-execution objective redirection**                                     | 🟡 Partial    | [02](02-authorization/)          |
 | 10  | DLP catches regulated data & credentials in **prompts and outputs**                | 🟢 Supported³ | [03](03-dlp/)                    |
 | 11  | **Custom regex + keyword libraries** for internal formats                          | 🟡 Partial    | [03](03-dlp/)                    |
 | 12  | Direct + **indirect** injection, plus **MCP tool-description poisoning**           | 🟡 Partial    | [04](04-injection-supply-chain/) |
 
 ¹ Model requests and MCP tool calls are enforced pre-execution today. A2A (agent-to-agent) hops are checked, but only as a coerced `process_prompt` text scan — there is no A2A-native policy action yet. See track 02.
-² The _mechanism_ — revoke an identity and its entire delegation tree dies within seconds — is fully built and demoed in track 01. What is missing is the _trigger_: nothing today maps a human's deactivation in the IdP to that revocation. That wiring is the single highest-value gap for this PoV. See track 02 and `GAP-ANALYSIS.md` (G-UC8).
+² Was this track's one 🔴 gap; the _trigger_ has since shipped. The _mechanism_ — revoke an identity and its entire delegation tree dies within seconds — was always real (track 01). The missing IdP wiring is now an inbound SCIM 2.0 provider in admin: deactivation in Okta/Entra durably offboards every agent the human owns, and the full provider (create, groups, group→project-access mappings) is [admin#1313](https://github.com/highflame-ai/highflame-admin/pull/1313). Runnable proof: `02-authorization/scim_provisioning.py`. Stays "partial" until the public `/scim/v2` ingress ([cloud#2274](https://github.com/highflame-ai/highflame-cloud/pull/2274)) and the INV-IDN-010 regression land — the ground rule, applied to ourselves. See track 02 and `GAP-ANALYSIS.md` (G-UC8).
 ³ With one caveat the client should hear up front: **credentials are block-only, not redactable** — a secret is stopped, never masked-and-forwarded. PII/PHI is fully redactable. See track 03.
 
-**Score:** 5 supported, 6 partial, 1 gap.
+**Score:** 5 supported, 7 partial, 0 gaps.
 Every "partial" has a working demo of its supported half and a named, scoped path to close the rest.
-Gap-closure is moving: UC11's both edges are merged (shield #381 + studio #1396), UC6's Observatory delegation columns are in review ([observatory #159](https://github.com/highflame-ai/highflame-observatory/pull/159)), and UC4's remaining edge is scoped in [studio#1400](https://github.com/highflame-ai/highflame-studio/issues/1400) — verdicts flip only after deploy + regression tests, per the ground rule; see the dated status refreshes in [`GAP-ANALYSIS.md`](GAP-ANALYSIS.md).
+Gap-closure is moving: UC8's SCIM trigger chain is merged end-to-end (zeroid offboard-by-owner + admin's deactivation receiver, live on dev1, + the full provider in [admin#1313](https://github.com/highflame-ai/highflame-admin/pull/1313)), UC11's both edges are merged (shield #381 + studio #1396), UC6's Observatory delegation columns are in review ([observatory #159](https://github.com/highflame-ai/highflame-observatory/pull/159)), and UC4's remaining edge is scoped in [studio#1400](https://github.com/highflame-ai/highflame-studio/issues/1400) — verdicts flip only after deploy + regression tests, per the ground rule; see the dated status refreshes in [`GAP-ANALYSIS.md`](GAP-ANALYSIS.md).
 
 ---
 
