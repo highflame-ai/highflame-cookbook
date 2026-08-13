@@ -1,0 +1,2 @@
+# The smoke test uses only the standard library, so there is nothing to install.
+# This file exists because every recipe ships one, and CI expects it.
