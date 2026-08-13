@@ -46,7 +46,7 @@ per-request attribution.
 
 ## Which agents support which
 
-Overwatch detects 17 coding agents for inventory. Detection is inventory, not protection,
+Overwatch detects 18 coding agents for inventory. Detection is inventory, not protection,
 so the columns that matter are the last two.
 
 | Agent | Detected | Endpoint | Gateway |
@@ -56,6 +56,7 @@ so the columns that matter are the last two.
 | Cursor | Yes | Yes | No |
 | Gemini CLI | Yes | Yes | No |
 | GitHub Copilot | Yes | Yes (per repository) | No |
+| Kiro | Yes | Yes (tool calls only, see below) | No |
 | Zed, Void, PearAI | Yes | No | No |
 | VS Code, JetBrains IDEs | Yes | No | No |
 | Aider, Mentat, GPT-Pilot | Yes | No | No |
@@ -68,10 +69,33 @@ to carry a Highflame credential in a request header. Where an agent shows No:
   terminates at Cursor's own backend rather than a model provider Highflame can front.
 - **GitHub Copilot** traffic terminates at GitHub.
 - **Gemini CLI** can only present its credential in a header the gateway does not accept.
+- **Kiro** routes model traffic through its own managed backend, with no user-configurable
+  endpoint.
 - The remaining agents expose no supported endpoint setting.
 
 **An agent that cannot use gateway mode is not unprotected.** Every agent in the Endpoint
 column is fully covered by endpoint protection, which watches more of what the agent does.
+
+### Kiro enforces tool calls, and advises on prompts
+
+Kiro is the one agent whose hooks signal their verdict with a process exit code rather than
+a response body, and it honours that code on **tool calls only**:
+
+| Kiro surface | What Overwatch does |
+| --- | --- |
+| Shell, file, and MCP tool calls | **Blocks.** The command does not run, and the reason is shown |
+| Prompt submission | Detects and records, then hands the reason to the model, which declines |
+| Tool results, session start and stop | Records for audit |
+
+The prompt distinction is Kiro's, not a limitation of Overwatch: Kiro provides no mechanism
+to stop a prompt reaching the model, so a prompt-level verdict arrives as context the model
+acts on rather than as an enforced stop. Anything the model then tries to *do* is enforced.
+
+Two further Kiro notes:
+
+- Tool output cannot be rewritten, so a secret printed by a tool is detected and recorded
+  but still reaches the model. Cursor's shell output has the same limitation.
+- Kiro Web and Mobile support no hooks at all, so those sessions are not covered.
 
 Sign-in method is not a restriction: Claude Code works on an API key or a subscription
 login, and Codex works on an API key or a ChatGPT sign-in.
