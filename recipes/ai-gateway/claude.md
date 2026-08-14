@@ -170,7 +170,7 @@ with your Highflame Gateway endpoint.
 For example:
 
 ```json
-"ANTHROPIC_BASE_URL": "https://gateway-dev.highflame.dev/llm/v1"
+"ANTHROPIC_BASE_URL": "https://gateway.highflame.ai/llm/v1"
 ```
 
 Replace:
