@@ -43,7 +43,7 @@ Verify the installation:
 codex --version
 ```
 
-![codex --version](images/codex.png)
+![ codex](images/codex.png)
 
 ---
 
@@ -180,7 +180,7 @@ with your Highflame Gateway endpoint.
 For example:
 
 ```toml
-base_url = "https://gateway-dev.highflame.dev/llm/v1"
+base_url = "https://gateway.highflame.ai/llm/v1"
 ```
 
 The final configuration might look like:
@@ -192,7 +192,7 @@ model_reasoning_effort = "medium"
 
 [model_providers.highflame]
 name = "Highflame AI Gateway"
-base_url = "https://gateway-dev.highflame.dev/llm/v1"
+base_url = "https://gateway.highflame.ai/llm/v1"
 env_key = "HIGHFLAME_API_KEY"
 wire_api = "responses"
 stream_idle_timeout_ms = 7200000
