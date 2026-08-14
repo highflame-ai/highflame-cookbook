@@ -89,7 +89,7 @@ base_url = "https://gateway.highflame.ai/llm/v1"
 3. Create a new API key.
 4. Copy the API key and store it securely.
 
-![ api_key](images/api_key.png)
+![ api\_key](images/api_key.png)
 
 The API key is used to authenticate Codex requests with the Highflame AI Gateway.
 
@@ -281,7 +281,7 @@ Inside Codex, run a simple request:
 Hello, confirm that the connection is working.
 ```
 
-Then check the Highflame Observatroy.
+Then check **Highflame Observatory**.
 
 You should see the request being received by Highflame.
 
