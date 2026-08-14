@@ -39,7 +39,7 @@ Verify the installation:
 claude --version
 ```
 
-![claude](images/claude.png)
+![claude --version](images/claude.png)
 
 ---
 
@@ -186,7 +186,7 @@ The final configuration might look like:
 ```json
 {
   "env": {
-    "ANTHROPIC_BASE_URL": "https://gateway-dev.highflame.dev/llm/v1",
+    "ANTHROPIC_BASE_URL": "https://gateway.highflame.ai/llm/v1",
     "ANTHROPIC_CUSTOM_HEADERS": "x-highflame-apikey: YOUR_HIGHFLAME_API_KEY",
     "ANTHROPIC_MODEL": "anthropic/claude-sonnet-4-6"
   }
@@ -202,7 +202,7 @@ For example:
 ```json
 {
   "env": {
-    "ANTHROPIC_BASE_URL": "https://gateway-dev.highflame.dev/llm/v1",
+    "ANTHROPIC_BASE_URL": "https://gateway.highflame.ai/llm/v1",
     "ANTHROPIC_CUSTOM_HEADERS": "x-highflame-apikey: YOUR_HIGHFLAME_API_KEY",
     "ANTHROPIC_MODEL": "anthropic/claude-sonnet-4-6"
   },

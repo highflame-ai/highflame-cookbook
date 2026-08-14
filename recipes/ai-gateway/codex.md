@@ -43,7 +43,7 @@ Verify the installation:
 codex --version
 ```
 
-![ codex](images/codex.png)
+![codex --version](images/codex.png)
 
 ---
 
