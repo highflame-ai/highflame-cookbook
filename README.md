@@ -22,6 +22,7 @@ team already runs AI. Find your row:
 | --- | --- | --- | --- |
 | **The Highflame SDK directly** | [`recipes/sdk/`](recipes/sdk/) | `pip install highflame` + four lines | Full guardrail coverage on every prompt and tool call; the foundation all other recipes build on |
 | **Coding agents** (Claude Code, Cursor, Codex…) behind **Tailscale Aperture** | [`recipes/aperture/`](recipes/aperture/) | Add one Highflame hook in Aperture | Block secret & PII leaks, redact PII, stop prompt injection — with per-developer identity on every request |
+| **Claude Code, Codex CLI, or GitHub Copilot** and want them to talk to Highflame directly | [`recipes/ai-gateway/`](recipes/ai-gateway/) | Point the agent's base URL at the Highflame AI Gateway | Every model call goes through Highflame — logging, policy, and routing — without changing how you use the CLI |
 | **LiteLLM** already | [`recipes/litellm/`](recipes/litellm/) | Add Highflame as an upstream provider, or as a guardrail hook | Keep your routing and budgets; add the security + identity layer |
 | **AI agents from an IdP** (Google Workspace, Okta, Entra…) | [`recipes/agent-governance/`](recipes/agent-governance/) | Connect your IdP; adopt agents; attach a guardrail | Discover every agent, give each an accountable owner, and govern what it does at runtime |
 | **Registry connectors** (Entra, Okta, Google Workspace, Agent Engine) | [`recipes/connectors/`](recipes/connectors/) | Configure the provider-side app / IAM / token Highflame needs | Wire Studio discovery so agents show up ready to adopt |
@@ -50,6 +51,7 @@ a real key.
 | --- | --- | --- | --- |
 | [**Highflame SDK**](recipes/sdk/) | Evaluate prompts & tools directly; the foundation | Marimo notebooks | ✅ ready |
 | [**Code agents via Tailscale Aperture**](recipes/aperture/) | Securing Claude Code / Cursor / Codex behind Aperture | Python scripts | ✅ ready |
+| [**AI Gateway**](recipes/ai-gateway/) | Point Claude Code, Codex, or GitHub Copilot at the Highflame AI Gateway | Reference docs | ✅ ready |
 | [**LiteLLM**](recipes/litellm/) | Teams already running LiteLLM | Python scripts | ✅ ready |
 | [**Overwatch policy catalog**](recipes/overwatch-policies/) | What Overwatch catches for IDE coding agents (Cursor, Claude Code, Copilot) | Reference doc | ✅ ready |
 | [**Agent governance**](recipes/agent-governance/) | Discovering, adopting & guarding agents from Google Workspace / Okta / Entra | Python script | ✅ ready |
