@@ -2,14 +2,7 @@
 
 This guide explains how to configure **AWS Bedrock** for the Highflame Registry connector.
 
-The connector discovers:
-
-```text
-Amazon Bedrock Agents
-Amazon Bedrock AgentCore runtimes
-```
-
-Highflame uses read-only AWS permissions and does not create, update, or delete Bedrock resources.
+![AWS connector configuration](images/aws_connector_arn.png)
 
 ---
 
@@ -34,8 +27,6 @@ Bedrock resources are regional. Add every region that Highflame should enumerate
 ```text
 us-east-1,us-west-2
 ```
-
-> **Important:** For a customer or sandbox integration, use that target account's ID. Do not use Highflame's AWS account ID.
 
 ---
 
@@ -64,6 +55,7 @@ Open the **JSON** editor and paste:
   ]
 }
 ```
+Recommended policy name:
 
 Name the policy:
 
@@ -72,6 +64,8 @@ HighflameBedrockDiscoveryReadOnly
 ```
 
 Click **Create policy**.
+
+![New policy](images/aws_policy.png)
 
 These permissions allow Highflame to list Bedrock agents and AgentCore runtimes and read their tags. Resource tags such as `Owner`, `owner-email`, `managed-by`, or `created-by` can provide the accountable-owner signal in Highflame.
 
@@ -151,6 +145,9 @@ In the target AWS account, go to:
 
 Select **Custom trust policy**.
 
+![New Role](images/aws_role.png)
+
+
 Use the trust policy shown by Studio. Its shape is:
 
 ```json
@@ -222,26 +219,11 @@ Last sync status:
 Success
 ```
 
-Discovered resources appear in the Highflame agent inventory with:
-
-```text
-Origin:
-aws
-```
-
-Classic Bedrock Agents use subtype `bedrock_agent`. AgentCore runtimes use subtype `agentcore_runtime`.
-
-If the sync reports `AccessDenied` for `sts:AssumeRole`, verify:
-
-* The trust-policy principal exactly matches the Highflame discovery role shown by Studio.
-* `sts:ExternalId` exactly matches the connector's generated External ID.
-* The role ARN and connector account ID refer to the same AWS account.
-
----
-
 ## Alternative — Authenticate with an Access Key
 
 Use an access key only when cross-account role assumption is unavailable.
+
+![AWS connector configuration](images/aws_connector_key.png)
 
 In the target AWS account:
 
