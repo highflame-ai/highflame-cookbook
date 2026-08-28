@@ -174,6 +174,11 @@ curl -s "https://api.highflame.ai/v1/obs/costs/intelligence?start=2026-08-01T00:
 The reporting API does not accept the `zid_sk_…` key directly. Step 1 is
 required.
 
+These scripts use plain HTTP rather than the Highflame SDK. The SDK covers
+Shield today (`guard`, `detect`, `detectors`, `debug`, `identity`), and has no
+reporting namespace, so there is nothing to install beyond the standard
+library.
+
 For anything the fixed endpoints do not cover, `POST /v1/obs/query` runs a
 query against a named view. `GET /v1/obs/views` lists them, and
 `GET /v1/obs/views/{name}` returns one view's dimensions, measures, and
