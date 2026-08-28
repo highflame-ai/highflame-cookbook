@@ -1,0 +1,5 @@
+highflame[langgraph]
+langchain>=1.0
+langgraph>=0.2
+langchain-openai
+python-dotenv

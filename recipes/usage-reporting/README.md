@@ -11,7 +11,7 @@ schedule you set.
 
 | Question | Script |
 | --- | --- |
-| What did every developer actually send? | `export_events.py` |
+| Who ran what, when, and what did the policy decide? | `export_events.py` |
 | What are we spending, by model and by product? | `usage_report.py --report cost` |
 | Who is using the most tokens, and who is getting blocked? | `usage_report.py --report usage` |
 | What did the AI sessions ship (commits, PRs, issues closed)? | `usage_report.py --report productivity` |
@@ -46,7 +46,7 @@ It mints a token, prints the scope that token is bound to, and runs one line
 per report:
 
 ```
-PASS token minted, scope account_id=757038846364 project_id=e6ae415d-…
+PASS token minted, scope account_id=<your account> project_id=<your project>
 PASS event export returned 5 prompt event(s)
 PASS cost report, total $412.50
 PASS usage report, 12 active developer(s)
@@ -67,7 +67,7 @@ python export_events.py
 python export_events.py --prompts-only --since 30d --format csv -o prompts.csv
 
 # One developer, blocked events only.
-python export_events.py --user-id user_39x4SRPR9kKGvvQVNYFlcSmWwCE --decision deny
+python export_events.py --user-id <a user_id from a previous export> --decision deny
 ```
 
 **Filters:** `--product`, `--service`, `--event-type`, `--decision`, `--mode`,
@@ -119,11 +119,17 @@ python usage_report.py --report usage --since 7d
 
 `--report all` is the default.
 
-**Read the `INCOMPLETE` lines.** Long tables get capped, either by the server
-or by the script at 25 repos and 200 developers. Any list that was cut is named
-in the report header, and in `meta.truncated` in the JSON. A capped "By
-developer" table also under-counts `active_developers`. Treat those lines as a
-correctness warning, not a footnote.
+**Read the `INCOMPLETE` lines.** Long tables get capped: by this script at
+2,000 usage rows, 25 repos and 200 developers, and by the server at 10,000 rows.
+Any list that was cut is named in the report header, and in `meta.truncated` in
+the JSON. Treat those lines as a correctness warning, not a footnote. The
+`usage` report's `active_developers` counts the rows it received, so a capped
+table means a low count.
+
+The server sets its own `truncated` flag to `false` even when it caps, so the
+script compares row counts against the limit in force rather than trusting that
+flag. Raising a cap means editing the constants at the top of
+`usage_report.py`; there is no command-line flag for it.
 
 **`shipping_sessions` and `total_sessions` are not two halves of one ratio.**
 `shipping_sessions` counts sessions that produced git activity. `total_sessions`
@@ -155,10 +161,17 @@ prefer.
 **1. Exchange your API key for a token.**
 
 ```bash
-curl -s -X POST https://auth.highflame.ai/oauth2/token \
+ACCESS_TOKEN=$(curl -s -X POST https://auth.highflame.ai/oauth2/token \
   -d 'grant_type=api_key' \
-  -d "api_key=$HIGHFLAME_API_KEY"
-# -> {"access_token":"eyJ…", …}
+  -d "api_key=$HIGHFLAME_API_KEY" | python3 -c 'import json,sys; print(json.load(sys.stdin)["access_token"])')
+```
+
+Drop the pipe to see the whole response. It carries the tenant scope alongside
+the token, so there is nothing to decode:
+
+```json
+{"access_token": "eyJ…", "account_id": "<your account>",
+ "project_id": "<your project>", "expires_in": 3600, "token_type": "Bearer"}
 ```
 
 **2. Call the reporting API with that token.**
@@ -174,18 +187,10 @@ curl -s "https://api.highflame.ai/v1/obs/costs/intelligence?start=2026-08-01T00:
 The reporting API does not accept the `zid_sk_…` key directly. Step 1 is
 required.
 
-The response carries the tenant scope alongside the token, so there is nothing
-to decode:
-
-```json
-{"access_token": "eyJ…", "account_id": "757038846364",
- "project_id": "e6ae415d-…", "expires_in": 3600, "token_type": "Bearer"}
-```
-
 These scripts use plain HTTP rather than the Highflame SDK. The SDK covers
-Shield today (`guard`, `detect`, `detectors`, `debug`, `identity`), and has no
-reporting namespace, so there is nothing to install beyond the standard
-library.
+Shield (`guard`, `detect`, `detectors`, `debug`) and identity (`agents`,
+`identities`, `tokens`, `api_keys`, and more), but it has no reporting
+namespace, so there is nothing to install beyond the standard library.
 
 For anything the fixed endpoints do not cover, `POST /v1/obs/query` runs a
 query against a named view. `GET /v1/obs/views` lists them, and
@@ -216,7 +221,9 @@ both. The server filters on them, so a key for project A never returns project
 B's data. Both scripts read the scope off the token response and stamp it on the
 output: `account_id` and `project_id` are the first two columns of the CSV and
 the first two keys of every JSON record. Pass `--no-tenant-columns` to
-`export_events.py` if you want the raw API shape.
+`export_events.py` to drop them. With `--format jsonl` that gives you the raw
+API event, all 41 fields. CSV is always a fixed 31-column projection, so the
+nested fields (`scores`, `flags`, `labels`) stay dropped either way.
 
 If your org runs several projects, create one key per project and merge the
 results yourself.
@@ -225,14 +232,24 @@ results yourself.
 through automatically and stops when the server runs out. Use `--max` to cap
 the export.
 
-**A failed export will not overwrite a good one.** A long export can die on
-page 30 of 40. With `-o`, the script writes to a temporary file beside the
-target and renames it only after the last page lands, so a scheduled reader
-never picks up a well-formed but truncated file. On failure the previous export
-stays where it is and the exit code is 1. Check it in your cron wrapper.
+**A failed run will not overwrite a good file.** A long export can die on page
+30 of 40. With `-o`, both scripts write to a temporary file beside the target
+and rename it only once the write completes, so a scheduled reader never picks
+up a well-formed but truncated file. On failure the previous file stays where it
+is and the exit code is 1. Check it in your cron wrapper.
 
-**Rate limits and transient failures.** Both scripts retry a 429 or a 5xx three
-times with a linear backoff, then give up with the server's message.
+The temporary file is named `.obs-export-*.partial`. `SIGTERM` cleans it up;
+`SIGKILL` cannot be caught, so a hard kill leaves one behind to delete.
+
+**Rate limits and transient failures.** Both scripts make up to three attempts
+on a 429 or a 5xx, backing off 2s then 4s, then give up with the server's
+message.
+
+**`user_name` is usually empty.** Identity arrives as a `user_id`. The
+`user_name` column exists in the schema but is blank across every event on the
+tenants tested, so join `user_id` against your own directory rather than
+expecting a display name. `--search` matches tool names and user names, which
+means in practice it matches tool names.
 
 **What an export contains.** Events carry metadata, not prompt text: who, when,
 which agent, which model, the decision, token counts, cost, latency, and which
@@ -242,5 +259,9 @@ specific event.
 **Scheduling.** Nothing here holds state, so a cron entry is enough:
 
 ```cron
-0 6 * * 1 cd /path/to/usage-reporting && python usage_report.py --since 7d --format json -o /var/reports/highflame-$(date +\%F).json
+0 6 * * 1 cd /path/to/usage-reporting && /usr/bin/python3 usage_report.py --since 7d --format json -o /var/reports/highflame-$(date +\%F).json
 ```
+
+Use an absolute interpreter path. Cron's `PATH` is usually `/usr/bin:/bin`, and
+on many distributions only `python3` exists there. The `cd` also matters: it is
+what puts `.env` in reach, since cron passes almost no environment.

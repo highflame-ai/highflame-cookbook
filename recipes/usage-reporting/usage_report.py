@@ -46,6 +46,7 @@ except ImportError:  # the scripts are stdlib-only by design
 # Reuse the client pieces rather than duplicating them. export_events.py
 # guards its CLI behind __main__, so importing it runs no side effects.
 from export_events import (  # noqa: E402
+    write_atomic,
     DEFAULT_API_URL,
     DEFAULT_AUTH_URL,
     ObservatoryError,
@@ -57,6 +58,16 @@ from export_events import (  # noqa: E402
 )
 
 QUERY_PATH = "/v1/obs/query"
+# The server caps a table at 10,000 rows and still reports truncated: false,
+# so `meta.truncated` cannot be trusted on its own. Compare the row count to
+# the limit that was actually in force instead.
+SERVER_ROW_CAP = 10_000
+
+# Client-side caps. per_user needs one because active_developers counts its
+# rows: without a limit it would silently ride the server cap instead.
+MAX_USER_ROWS = 2_000
+MAX_REPO_ROWS = 25
+MAX_DEVELOPER_ROWS = 200
 COSTS_PATH = "/v1/obs/costs/intelligence"
 
 # ViewQL result rows come back columnar. Every helper below re-shapes them
@@ -95,14 +106,20 @@ class Client:
             headers=self.headers,
             method="POST",
         )
-        meta = result.get("meta") or {}
-        if meta.get("truncated"):
-            self.truncations.append(
-                f"{body['view']} ({', '.join(body.get('dimensions') or [])}) "
-                f"— server truncated at {meta.get('row_count')} rows")
-
         names = [column["name"] for column in (result.get("columns") or [])]
-        return [dict(zip(names, row)) for row in (result.get("rows") or [])]
+        rows = [dict(zip(names, row)) for row in (result.get("rows") or [])]
+
+        meta = result.get("meta") or {}
+        label = f"{body['view']} ({', '.join(body.get('dimensions') or [])})"
+        if meta.get("truncated"):
+            self.truncations.append(f"{label}: server reported truncation at "
+                                    f"{len(rows)} rows")
+        elif len(rows) >= SERVER_ROW_CAP:
+            # truncated stays false at the cap, so the count is the only signal.
+            self.truncations.append(
+                f"{label}: hit the server's {SERVER_ROW_CAP:,}-row cap; "
+                f"rows are missing and any count derived from them is low")
+        return rows
 
     def scalar(self, view: str, measures: list[str], time_range: dict) -> dict:
         """Run a chart_type=number query and return the single result row."""
@@ -131,11 +148,12 @@ class Client:
         rows = self.query(body)
 
         # A client-side cap that exactly fills is indistinguishable from a
-        # complete list, so say it was capped.
+        # complete list, so say it was capped. There is no flag to raise it —
+        # the limits are constants in this file.
         if limit and len(rows) >= limit:
             self.truncations.append(
-                f"{view} ({', '.join(dimensions)}) — capped at {limit} rows "
-                f"by --limit; more may exist")
+                f"{view} ({', '.join(dimensions)}): capped at {limit} rows by "
+                f"this script; more may exist")
         return rows
 
 
@@ -169,12 +187,15 @@ def report_usage(client: Client, time_range: dict) -> dict:
          "total_duration"],
         time_range,
         order_by="total_tokens",
+        limit=MAX_USER_ROWS,
     )
     totals = client.scalar(
         "user_daily",
         ["event_count", "threat_events", "blocked_events", "total_tokens"],
         time_range,
     )
+    # Derived from the rows, so it is only as complete as they are. When the
+    # table was capped, Client.table has already recorded a truncation note.
     return {
         "totals": totals,
         "active_developers": len({row.get("user_id") for row in per_user
@@ -208,12 +229,12 @@ def report_productivity(client: Client, time_range: dict) -> dict:
             "git_events", ["repo"],
             ["count", "commits", "prs_merged", "total_lines_added",
              "total_lines_removed"],
-            time_range, order_by="count", limit=25),
+            time_range, order_by="count", limit=MAX_REPO_ROWS),
         "by_developer": client.table(
             "git_events", ["user_id", "user_name"],
             ["commits", "prs_created", "prs_merged", "issues_closed",
              "total_lines_added", "total_lines_removed"],
-            time_range, order_by="commits", limit=200),
+            time_range, order_by="commits", limit=MAX_DEVELOPER_ROWS),
     }
 
 
@@ -343,16 +364,21 @@ def main() -> int:
 
         report["meta"]["truncated"] = client.truncations
 
-        stream = open(args.out, "w") if args.out else sys.stdout
-        try:
+        def emit(stream) -> int:
             if args.format == "json":
                 json.dump(report, stream, indent=2)
                 stream.write("\n")
             else:
                 render_text(report, stream)
-        finally:
-            if args.out:
-                stream.close()
+            return 0
+
+        if args.out:
+            # Same guarantee as the event export: a crash or a full disk during
+            # the write leaves the previous report in place rather than a
+            # truncated one. The cron example in the README uses this path.
+            write_atomic(args.out, emit)
+        else:
+            emit(sys.stdout)
     except ObservatoryError as err:
         print(f"error: {err}", file=sys.stderr)
         return 1

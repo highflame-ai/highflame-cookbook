@@ -3,3 +3,8 @@ __pycache__/
 .env
 .venv/
 venv/
+
+# Report output from recipes/usage-reporting (the README's own examples)
+*.jsonl
+prompts.csv
+report.json

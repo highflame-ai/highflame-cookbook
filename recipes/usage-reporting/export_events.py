@@ -35,6 +35,7 @@ import csv
 import json
 import os
 import re
+import signal
 import sys
 import tempfile
 import time
@@ -140,8 +141,8 @@ def request_json(url: str, *, data: bytes | None = None,
                  method: str = "GET", timeout: int = 60) -> dict:
     """Issue one HTTP request and decode the JSON body.
 
-    Retries a 429 or 5xx up to three times with a linear backoff. Raises
-    ObservatoryError with the server's message on any other failure.
+    Makes up to three attempts on a 429 or 5xx (two retries), backing off 2s
+    then 4s. Raises ObservatoryError with the server's message otherwise.
     """
     request = urllib.request.Request(url, data=data, method=method,
                                      headers=headers or {})
@@ -341,20 +342,40 @@ def write_atomic(path: str, emit) -> int:
 
     A failure part-way through leaves the target untouched rather than
     replacing it with a partial export that still parses.
+
+    mkstemp creates 0600, which the rename would carry onto the output — a
+    scheduled BI job running as another user could not then read it. Reset to
+    the mode a plain `open()` would have produced under the caller's umask.
+
+    SIGTERM is trapped so a stopped cron job cleans up its temp file. SIGKILL
+    cannot be caught, and leaves a `.partial` behind for you to delete.
     """
     directory = os.path.dirname(os.path.abspath(path)) or "."
-    handle, temp_path = tempfile.mkstemp(dir=directory, suffix=".partial")
+    handle, temp_path = tempfile.mkstemp(dir=directory, prefix=".obs-export-",
+                                         suffix=".partial")
+
+    def discard(*_args):
+        try:
+            os.unlink(temp_path)
+        except OSError:
+            pass
+
+    previous_term = signal.signal(signal.SIGTERM,
+                                  lambda *a: (discard(), sys.exit(143)))
     try:
+        umask = os.umask(0)
+        os.umask(umask)
+        os.chmod(temp_path, 0o666 & ~umask)
+
         with os.fdopen(handle, "w", newline="") as stream:
             count = emit(stream)
         os.replace(temp_path, path)
         return count
     except BaseException:
-        try:
-            os.unlink(temp_path)
-        except OSError:
-            pass
+        discard()
         raise
+    finally:
+        signal.signal(signal.SIGTERM, previous_term)
 
 
 def main() -> int:
@@ -457,7 +478,7 @@ def main() -> int:
             # Page N of M can fail after N-1 pages are already on disk. Write
             # to a temp file beside the target and rename only on success, so
             # a scheduled consumer never reads a well-formed but truncated
-            # export. See README "Partial exports".
+            # export. See README "A failed export will not overwrite a good one".
             count = write_atomic(args.out, emit)
         else:
             count = emit(sys.stdout)
