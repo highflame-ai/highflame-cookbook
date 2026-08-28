@@ -18,10 +18,8 @@ from export_events import (
     DEFAULT_AUTH_URL,
     ObservatoryError,
     build_filters,
-    decode_jwt_claims,
     fetch_events,
     mint_token,
-    read_tenant,
     rfc3339,
 )
 from usage_report import Client, report_cost, report_productivity, report_usage
@@ -52,15 +50,11 @@ def main() -> int:
 
     try:
         token = mint_token(auth_url, api_key)
-        account_id, project_id = read_tenant(decode_jwt_claims(token))
-        if not account_id:
-            print("FAIL token carries no account_id claim — reports would be "
-                  "unattributable")
-            return 1
+        account_id, project_id = token.account_id, token.project_id
         print(f"PASS token minted, scope account_id={account_id} "
               f"project_id={project_id or '(empty)'}")
 
-        events = list(fetch_events(api_url, token, start, end,
+        events = list(fetch_events(api_url, token.access_token, start, end,
                                    build_filters(_Filters()),
                                    prompts_only=True, max_events=5,
                                    page_size=5, verbose=False))
@@ -70,7 +64,7 @@ def main() -> int:
                 return 1
         print(f"PASS event export returned {len(events)} prompt event(s)")
 
-        client = Client(api_url, token)
+        client = Client(api_url, token.access_token)
         cost = report_cost(client, start, end, time_range)
         if "total_cost_usd" not in cost:
             print(f"FAIL cost report missing total_cost_usd: {sorted(cost)}")

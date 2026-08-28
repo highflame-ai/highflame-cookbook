@@ -49,10 +49,8 @@ from export_events import (  # noqa: E402
     DEFAULT_API_URL,
     DEFAULT_AUTH_URL,
     ObservatoryError,
-    decode_jwt_claims,
     mint_token,
     parse_since,
-    read_tenant,
     request_json,
     resolve_window,
     rfc3339,
@@ -322,17 +320,13 @@ def main() -> int:
 
     try:
         token = mint_token(args.auth_url, args.api_key)
-        claims = decode_jwt_claims(token)
-        account_id, project_id = read_tenant(claims)
-        if not account_id:
-            raise ObservatoryError(
-                "the minted token carries no account_id claim. Claims "
-                "present: " + ", ".join(sorted(claims)))
+        account_id, project_id = token.account_id, token.project_id
         if args.verbose:
             print(f"scope: account_id={account_id} "
                   f"project_id={project_id or '(empty)'}", file=sys.stderr)
 
-        client = Client(args.api_url, token, verbose=args.verbose)
+        client = Client(args.api_url, token.access_token,
+                        verbose=args.verbose)
         report: dict = {"meta": {
             "account_id": account_id,
             "project_id": project_id,

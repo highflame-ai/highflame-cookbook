@@ -174,6 +174,14 @@ curl -s "https://api.highflame.ai/v1/obs/costs/intelligence?start=2026-08-01T00:
 The reporting API does not accept the `zid_sk_…` key directly. Step 1 is
 required.
 
+The response carries the tenant scope alongside the token, so there is nothing
+to decode:
+
+```json
+{"access_token": "eyJ…", "account_id": "757038846364",
+ "project_id": "e6ae415d-…", "expires_in": 3600, "token_type": "Bearer"}
+```
+
 These scripts use plain HTTP rather than the Highflame SDK. The SDK covers
 Shield today (`guard`, `detect`, `detectors`, `debug`, `identity`), and has no
 reporting namespace, so there is nothing to install beyond the standard
@@ -205,7 +213,7 @@ curl -s -X POST https://api.highflame.ai/v1/obs/query \
 
 **Every export is scoped to one account and one project.** Your key carries
 both. The server filters on them, so a key for project A never returns project
-B's data. Both scripts decode the scope from the token and stamp it on the
+B's data. Both scripts read the scope off the token response and stamp it on the
 output: `account_id` and `project_id` are the first two columns of the CSV and
 the first two keys of every JSON record. Pass `--no-tenant-columns` to
 `export_events.py` if you want the raw API shape.

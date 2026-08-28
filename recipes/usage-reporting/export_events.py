@@ -31,7 +31,6 @@ Examples
 from __future__ import annotations
 
 import argparse
-import base64
 import csv
 import json
 import os
@@ -43,6 +42,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from datetime import datetime, timedelta, timezone
+from typing import NamedTuple
 
 try:  # optional convenience: load .env if python-dotenv is installed
     from dotenv import load_dotenv
@@ -66,11 +66,14 @@ PROMPT_EVENT_TYPE = "process_prompt"
 MAX_PAGE_SIZE = 100
 PAGE_SIZE = MAX_PAGE_SIZE
 
-# Claim names to try when reading the tenant scope out of the minted JWT,
-# most specific first. AuthN issues account_id/project_id; the aliases cover
-# an older or audience-scoped token shape.
-ACCOUNT_CLAIMS = ("account_id", "accountId", "acct")
-PROJECT_CLAIMS = ("project_id", "projectId", "proj")
+
+class Token(NamedTuple):
+    """A minted JWT plus the tenant scope the server bound it to."""
+
+    access_token: str
+    account_id: str
+    project_id: str
+
 
 # Columns written by --format csv. Nested fields (scores, flags, labels) are
 # omitted here — use --format jsonl to keep them.
@@ -163,44 +166,15 @@ def request_json(url: str, *, data: bytes | None = None,
     raise ObservatoryError(f"gave up on {url}: {last_error}")
 
 
-def decode_jwt_claims(token: str) -> dict:
-    """Read the claim set out of a JWT without verifying the signature.
+def mint_token(auth_url: str, api_key: str) -> Token:
+    """Exchange a zid_sk_* API key for a bearer JWT and its tenant scope.
 
-    Verification is the server's job — Observatory checks the signature
-    against AuthN's JWKS on every call. This decode exists only to label the
-    export with the tenant the token is scoped to, so a reader can tell which
-    account and project the rows came from.
+    The token endpoint returns account_id and project_id alongside the JWT, so
+    there is nothing to decode: the server has already told us what the token
+    is scoped to. An empty project_id is a real value, not a missing one —
+    Observatory filters on `project_id = ?`, so it matches only rows stored
+    with an empty project_id. It does NOT mean "every project".
     """
-    parts = token.split(".")
-    if len(parts) != 3:
-        raise ObservatoryError("access_token is not a JWT; cannot read tenant scope")
-    payload = parts[1]
-    payload += "=" * (-len(payload) % 4)  # restore base64 padding
-    try:
-        return json.loads(base64.urlsafe_b64decode(payload).decode("utf-8"))
-    except (ValueError, UnicodeDecodeError) as err:
-        raise ObservatoryError(f"cannot decode JWT payload: {err}") from err
-
-
-def read_tenant(claims: dict) -> tuple[str, str]:
-    """Return (account_id, project_id) from a decoded claim set.
-
-    An empty project_id is normal and meaningful: Observatory filters on
-    `project_id = ?`, so an empty claim matches only rows stored with an empty
-    project_id. It does NOT mean "every project".
-    """
-    def first(names):
-        for name in names:
-            value = claims.get(name)
-            if value:
-                return str(value)
-        return ""
-
-    return first(ACCOUNT_CLAIMS), first(PROJECT_CLAIMS)
-
-
-def mint_token(auth_url: str, api_key: str) -> str:
-    """Exchange a zid_sk_* API key for a bearer JWT."""
     payload = urllib.parse.urlencode({
         "grant_type": "api_key",
         "api_key": api_key,
@@ -211,10 +185,21 @@ def mint_token(auth_url: str, api_key: str) -> str:
         headers={"Content-Type": "application/x-www-form-urlencoded"},
         method="POST",
     )
-    token = result.get("access_token")
-    if not token:
-        raise ObservatoryError(f"token response carried no access_token: {result}")
-    return token
+
+    access_token = result.get("access_token")
+    if not access_token:
+        raise ObservatoryError(
+            f"token response carried no access_token: {sorted(result)}")
+
+    account_id = str(result.get("account_id") or "")
+    if not account_id:
+        # Naming what the response DID carry turns a dead end into a fix.
+        raise ObservatoryError(
+            "token response carried no account_id, so an export cannot be "
+            "labelled with its scope. Fields present: " + ", ".join(
+                sorted(k for k in result if k != "access_token")))
+
+    return Token(access_token, account_id, str(result.get("project_id") or ""))
 
 
 def build_filters(args: argparse.Namespace) -> dict[str, str]:
@@ -444,22 +429,14 @@ def main() -> int:
 
     try:
         token = mint_token(args.auth_url, args.api_key)
-        claims = decode_jwt_claims(token)
-        account_id, project_id = read_tenant(claims)
-        if not account_id:
-            # Naming the claims that ARE present turns a dead end into a
-            # one-line fix: add the right name to ACCOUNT_CLAIMS.
-            raise ObservatoryError(
-                "the minted token carries no account_id claim, so the export "
-                "cannot be labelled with its scope. Claims present: "
-                + ", ".join(sorted(claims)))
+        account_id, project_id = token.account_id, token.project_id
         if args.verbose:
             print(f"token minted at {args.auth_url}", file=sys.stderr)
             print(f"scope: account_id={account_id} "
                   f"project_id={project_id or '(empty)'}", file=sys.stderr)
 
         events = fetch_events(
-            args.api_url, token, start, end, build_filters(args),
+            args.api_url, token.access_token, start, end, build_filters(args),
             prompts_only=args.prompts_only,
             max_events=args.max_events,
             page_size=args.page_size,
