@@ -36,6 +36,13 @@ import os
 import sys
 from datetime import datetime, timezone
 
+try:  # optional convenience: load .env if python-dotenv is installed
+    from dotenv import load_dotenv
+
+    load_dotenv()
+except ImportError:  # the scripts are stdlib-only by design
+    pass
+
 # Reuse the client pieces rather than duplicating them. export_events.py
 # guards its CLI behind __main__, so importing it runs no side effects.
 from export_events import (  # noqa: E402
@@ -47,6 +54,7 @@ from export_events import (  # noqa: E402
     parse_since,
     read_tenant,
     request_json,
+    resolve_window,
     rfc3339,
 )
 
@@ -68,6 +76,9 @@ class Client:
             "Content-Type": "application/json",
         }
         self.verbose = verbose
+        # Every truncated result is recorded here, so the report can say so
+        # rather than presenting a silently shortened list as complete.
+        self.truncations: list[str] = []
 
     def costs(self, start: str, end: str) -> dict:
         import urllib.parse
@@ -86,6 +97,12 @@ class Client:
             headers=self.headers,
             method="POST",
         )
+        meta = result.get("meta") or {}
+        if meta.get("truncated"):
+            self.truncations.append(
+                f"{body['view']} ({', '.join(body.get('dimensions') or [])}) "
+                f"— server truncated at {meta.get('row_count')} rows")
+
         names = [column["name"] for column in (result.get("columns") or [])]
         return [dict(zip(names, row)) for row in (result.get("rows") or [])]
 
@@ -113,7 +130,15 @@ class Client:
             body["order_by"] = [{"name": order_by, "desc": True}]
         if limit:
             body["limit"] = limit
-        return self.query(body)
+        rows = self.query(body)
+
+        # A client-side cap that exactly fills is indistinguishable from a
+        # complete list, so say it was capped.
+        if limit and len(rows) >= limit:
+            self.truncations.append(
+                f"{view} ({', '.join(dimensions)}) — capped at {limit} rows "
+                f"by --limit; more may exist")
+        return rows
 
 
 def report_cost(client: Client, start: str, end: str,
@@ -172,9 +197,15 @@ def report_productivity(client: Client, time_range: dict) -> dict:
     sessions = client.scalar("events", ["unique_sessions"], time_range)
     kpis["total_sessions"] = sessions.get("unique_sessions", 0)
 
+    # shipping_sessions counts sessions in git_events; total_sessions counts
+    # sessions in the guard event stream. A session whose commits land inside
+    # the window but whose guard events fell before --start counts in the
+    # numerator only, so this ratio is an estimate and can exceed 1.0. Both
+    # inputs stay in the output so a reader can check it.
     total = kpis.get("total_sessions") or 0
     shipping = kpis.get("shipping_sessions") or 0
-    kpis["shipping_session_ratio"] = round(shipping / total, 4) if total else 0
+    kpis["shipping_session_ratio_estimate"] = (
+        round(shipping / total, 4) if total else 0)
 
     return {
         "kpis": kpis,
@@ -223,6 +254,8 @@ def render_text(report: dict, stream) -> None:
     print(f"  account_id  {meta['account_id']}", file=stream)
     print(f"  project_id  {meta['project_id'] or '(empty)'}", file=stream)
     print(f"  window      {meta['start']} to {meta['end']}", file=stream)
+    for note in meta.get("truncated") or []:
+        print(f"  INCOMPLETE  {note}", file=stream)
 
     if "cost" in report:
         cost = report["cost"]
@@ -285,8 +318,7 @@ def main() -> int:
         parser.error("no API key; pass --api-key or set HIGHFLAME_API_KEY")
 
     now = datetime.now(timezone.utc)
-    end = args.end or rfc3339(now)
-    start = args.start or rfc3339(now - args.since)
+    start, end = resolve_window(args.start, args.end, args.since, parser.error)
     time_range = {"start": start, "end": end}
 
     try:
@@ -315,6 +347,8 @@ def main() -> int:
             report["usage"] = report_usage(client, time_range)
         if args.report in ("productivity", "all"):
             report["productivity"] = report_productivity(client, time_range)
+
+        report["meta"]["truncated"] = client.truncations
 
         stream = open(args.out, "w") if args.out else sys.stdout
         try:

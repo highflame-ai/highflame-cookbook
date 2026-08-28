@@ -37,11 +37,19 @@ import json
 import os
 import re
 import sys
+import tempfile
 import time
 import urllib.error
 import urllib.parse
 import urllib.request
 from datetime import datetime, timedelta, timezone
+
+try:  # optional convenience: load .env if python-dotenv is installed
+    from dotenv import load_dotenv
+
+    load_dotenv()
+except ImportError:  # the scripts are stdlib-only by design
+    pass
 
 DEFAULT_AUTH_URL = "https://auth.highflame.ai"
 DEFAULT_API_URL = "https://api.highflame.ai"
@@ -58,14 +66,14 @@ PROMPT_EVENT_TYPE = "process_prompt"
 MAX_PAGE_SIZE = 100
 PAGE_SIZE = MAX_PAGE_SIZE
 
-# Columns written by --format csv. Nested fields (scores, flags, labels) are
-# omitted here — use --format jsonl to keep them.
 # Claim names to try when reading the tenant scope out of the minted JWT,
 # most specific first. AuthN issues account_id/project_id; the aliases cover
 # an older or audience-scoped token shape.
 ACCOUNT_CLAIMS = ("account_id", "accountId", "acct")
 PROJECT_CLAIMS = ("project_id", "projectId", "proj")
 
+# Columns written by --format csv. Nested fields (scores, flags, labels) are
+# omitted here — use --format jsonl to keep them.
 CSV_COLUMNS = [
     "account_id",
     "project_id",
@@ -217,6 +225,7 @@ def build_filters(args: argparse.Namespace) -> dict[str, str]:
         "service": args.service,
         "event_type": args.event_type,
         "decision": args.decision,
+        "mode": args.mode,
         "severity": args.severity,
         "threat_category": args.threat_category,
         "session_id": args.session_id,
@@ -315,6 +324,54 @@ def write_csv(events, stream, columns=None) -> int:
     return count
 
 
+def resolve_window(start: str | None, end: str | None, since: timedelta,
+                   fail) -> tuple[str, str]:
+    """Return (start, end) in RFC3339, refusing an inverted window.
+
+    --end alone used to leave start at `now - since`, which puts start AFTER
+    end for any past --end. The server matched nothing and the script exited 0
+    with "wrote 0 events" — a silent wrong answer. Anchor the relative window
+    on --end when it is given.
+    """
+    now = datetime.now(timezone.utc)
+    anchor = parse_rfc3339(end, fail) if end else now
+    resolved_end = end or rfc3339(now)
+    resolved_start = start or rfc3339(anchor - since)
+
+    if parse_rfc3339(resolved_start, fail) >= parse_rfc3339(resolved_end, fail):
+        fail(f"--start ({resolved_start}) must be before --end "
+             f"({resolved_end})")
+    return resolved_start, resolved_end
+
+
+def parse_rfc3339(value: str, fail) -> datetime:
+    try:
+        return datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        fail(f"not a valid RFC3339 timestamp: {value!r}")
+
+
+def write_atomic(path: str, emit) -> int:
+    """Run emit(stream) into a temp file, then rename it over `path`.
+
+    A failure part-way through leaves the target untouched rather than
+    replacing it with a partial export that still parses.
+    """
+    directory = os.path.dirname(os.path.abspath(path)) or "."
+    handle, temp_path = tempfile.mkstemp(dir=directory, suffix=".partial")
+    try:
+        with os.fdopen(handle, "w", newline="") as stream:
+            count = emit(stream)
+        os.replace(temp_path, path)
+        return count
+    except BaseException:
+        try:
+            os.unlink(temp_path)
+        except OSError:
+            pass
+        raise
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description="Export Highflame Observatory events.",
@@ -343,14 +400,20 @@ def main() -> int:
                                               "--prompts-only for the server filter")
     filters.add_argument("--product")
     filters.add_argument("--service")
-    filters.add_argument("--decision", help="allow, deny, monitor")
+    filters.add_argument("--decision",
+                         help="allow, deny, modify, step_up, or defer. "
+                              "'monitor' is a mode, not a decision — use "
+                              "--mode for that")
+    filters.add_argument("--mode", help="enforce, monitor, or alert")
     filters.add_argument("--severity")
     filters.add_argument("--threat-category")
     filters.add_argument("--session-id")
     filters.add_argument("--user-id")
     filters.add_argument("--agent-id")
     filters.add_argument("--source-ide")
-    filters.add_argument("--search", help="free-text search across the payload")
+    filters.add_argument("--search",
+                         help="substring match on tool names and user names "
+                              "only — NOT the prompt payload")
     filters.add_argument("--has-threats", action="store_true",
                          help="only events that carry at least one threat")
 
@@ -377,9 +440,7 @@ def main() -> int:
         parser.error(f"--page-size must be between 1 and {MAX_PAGE_SIZE}; "
                      f"the API rejects anything larger with a 422")
 
-    now = datetime.now(timezone.utc)
-    end = args.end or rfc3339(now)
-    start = args.start or rfc3339(now - args.since)
+    start, end = resolve_window(args.start, args.end, args.since, parser.error)
 
     try:
         token = mint_token(args.auth_url, args.api_key)
@@ -407,17 +468,22 @@ def main() -> int:
         if not args.no_tenant_columns:
             events = label_tenant(events, account_id, project_id)
 
-        stream = open(args.out, "w", newline="") if args.out else sys.stdout
-        try:
+        columns = (CSV_COLUMNS[2:] if args.no_tenant_columns
+                   else CSV_COLUMNS)
+
+        def emit(stream) -> int:
             if args.format == "csv":
-                columns = (CSV_COLUMNS[2:] if args.no_tenant_columns
-                           else CSV_COLUMNS)
-                count = write_csv(events, stream, columns)
-            else:
-                count = write_jsonl(events, stream)
-        finally:
-            if args.out:
-                stream.close()
+                return write_csv(events, stream, columns)
+            return write_jsonl(events, stream)
+
+        if args.out:
+            # Page N of M can fail after N-1 pages are already on disk. Write
+            # to a temp file beside the target and rename only on success, so
+            # a scheduled consumer never reads a well-formed but truncated
+            # export. See README "Partial exports".
+            count = write_atomic(args.out, emit)
+        else:
+            count = emit(sys.stdout)
     except ObservatoryError as err:
         print(f"error: {err}", file=sys.stderr)
         return 1

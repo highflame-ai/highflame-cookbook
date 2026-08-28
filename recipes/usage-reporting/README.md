@@ -28,8 +28,11 @@ numbers as JSON, JSON Lines, or CSV, on a schedule you control.
 ```bash
 cp .env.example .env      # paste your key into HIGHFLAME_API_KEY
 pip install -r requirements.txt
-export $(grep -v '^#' .env | xargs)
 ```
+
+Both scripts load `.env` automatically when `python-dotenv` is installed. Without
+it they read the same variables straight from the environment, so
+`export HIGHFLAME_API_KEY=zid_sk_…` works just as well.
 
 ---
 
@@ -67,12 +70,22 @@ python export_events.py --prompts-only --since 30d --format csv -o prompts.csv
 python export_events.py --user-id user_39x4SRPR9kKGvvQVNYFlcSmWwCE --decision deny
 ```
 
-**Filters:** `--product`, `--service`, `--event-type`, `--decision`,
+**Filters:** `--product`, `--service`, `--event-type`, `--decision`, `--mode`,
 `--severity`, `--threat-category`, `--session-id`, `--user-id`, `--agent-id`,
 `--source-ide`, `--search`, `--has-threats`.
 
+Two of these are easy to mix up:
+
+- `--decision` takes `allow`, `deny`, `modify`, `step_up`, or `defer` — what the
+  policy decided. `monitor` is **not** a decision; it is a mode, so use
+  `--mode monitor`.
+- `--search` matches tool names and user names. It does **not** search prompt
+  text, so an empty result is not evidence that a phrase was never sent.
+
 **Window:** `--since 90m|24h|30d`, or an explicit `--start` and `--end` in
-RFC3339.
+RFC3339. `--since` counts back from `--end` when you give one, so
+`--end 2026-01-01T00:00:00Z --since 30d` reads December, not a window that ends
+before it starts.
 
 **Output:** `--format jsonl` (default) keeps every field, including detector
 scores and labels. `--format csv` writes 33 flat columns for a spreadsheet.
@@ -104,6 +117,18 @@ python usage_report.py --report usage --since 7d
 | `productivity` | Commits, PRs created, PRs merged, PRs closed, issues closed, lines added and removed, shipping sessions, active developers — by repo and by developer |
 
 `--report all` is the default.
+
+**Read the `INCOMPLETE` lines.** Long tables are capped — by the server, or by
+the script at 25 repos and 200 developers. Any list that was cut is named in the
+report header, and in `meta.truncated` in the JSON. A capped "By developer"
+table also under-counts `active_developers`, so treat those lines as a
+correctness warning, not a footnote.
+
+**`shipping_session_ratio_estimate` is an estimate.** Its numerator counts
+sessions that produced git activity; its denominator counts sessions seen by the
+guard. A session whose commits land inside your window but whose earlier
+activity does not counts in the numerator only, so the ratio can exceed 1.0.
+Both inputs stay in the output, so you can check it.
 
 ### Feeding a report to an LLM
 
@@ -184,6 +209,12 @@ results.
 **Paging.** The events endpoint caps `limit` at 100. `export_events.py` pages
 through automatically and stops when the server runs out. Use `--max` to cap
 the export.
+
+**Partial exports cannot happen.** A long export can fail on page 30 of 40.
+With `-o`, the script writes to a temporary file beside the target and renames
+it only after the last page lands, so a scheduled reader never picks up a
+well-formed but truncated file. On failure the previous export stays in place
+and the exit code is 1 — check it in your cron wrapper.
 
 **Rate limits and transient failures.** Both scripts retry a 429 or a 5xx three
 times with a linear backoff, then give up with the server's message.

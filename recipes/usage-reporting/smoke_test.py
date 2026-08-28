@@ -32,7 +32,7 @@ class _Filters:
 
     prompts_only = True
     has_threats = False
-    event_type = product = service = decision = severity = None
+    event_type = product = service = decision = severity = mode = None
     threat_category = session_id = user_id = agent_id = None
     source_ide = search = None
 
