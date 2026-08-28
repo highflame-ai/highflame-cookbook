@@ -124,11 +124,12 @@ report header, and in `meta.truncated` in the JSON. A capped "By developer"
 table also under-counts `active_developers`, so treat those lines as a
 correctness warning, not a footnote.
 
-**`shipping_session_ratio_estimate` is an estimate.** Its numerator counts
-sessions that produced git activity; its denominator counts sessions seen by the
-guard. A session whose commits land inside your window but whose earlier
-activity does not counts in the numerator only, so the ratio can exceed 1.0.
-Both inputs stay in the output, so you can check it.
+**`shipping_sessions` and `total_sessions` are not two halves of one ratio.**
+`shipping_sessions` counts sessions that produced git activity.
+`total_sessions` counts every session the guard saw, across products and
+across traffic that was never coding work. Dividing one by the other does not
+give a "shipping rate" — on a real tenant it reads as 0.02%. Both counts are in
+the output; scope them to the same traffic before you compare them.
 
 ### Feeding a report to an LLM
 

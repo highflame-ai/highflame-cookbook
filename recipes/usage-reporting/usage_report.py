@@ -197,15 +197,12 @@ def report_productivity(client: Client, time_range: dict) -> dict:
     sessions = client.scalar("events", ["unique_sessions"], time_range)
     kpis["total_sessions"] = sessions.get("unique_sessions", 0)
 
-    # shipping_sessions counts sessions in git_events; total_sessions counts
-    # sessions in the guard event stream. A session whose commits land inside
-    # the window but whose guard events fell before --start counts in the
-    # numerator only, so this ratio is an estimate and can exceed 1.0. Both
-    # inputs stay in the output so a reader can check it.
-    total = kpis.get("total_sessions") or 0
-    shipping = kpis.get("shipping_sessions") or 0
-    kpis["shipping_session_ratio_estimate"] = (
-        round(shipping / total, 4) if total else 0)
+    # No shipping/total ratio is derived here. shipping_sessions counts
+    # sessions in git_events; total_sessions counts every session in the guard
+    # event stream, across products and across non-coding traffic. The two are
+    # not the same population, so their quotient is not a "shipping rate" —
+    # against real data it reads as 0.02%. Both counts stay in the output;
+    # divide them yourself only when you have scoped both to the same traffic.
 
     return {
         "kpis": kpis,
@@ -272,16 +269,18 @@ def render_text(report: dict, stream) -> None:
         print(f"\n== Developer usage ==", file=stream)
         print(f"  active developers {usage['active_developers']:,}",
               file=stream)
+        width = max(len(name) for name in usage["totals"]) + 2
         for name, value in usage["totals"].items():
-            print(f"  {name:<18}{format_cell(value)}", file=stream)
+            print(f"  {name:<{width}}{format_cell(value)}", file=stream)
         print(f"\n  Per developer:", file=stream)
         render_rows(usage["per_user"], stream, indent="    ")
 
     if "productivity" in report:
         prod = report["productivity"]
         print(f"\n== Productivity ==", file=stream)
+        width = max(len(name) for name in prod["kpis"]) + 2
         for name, value in prod["kpis"].items():
-            print(f"  {name:<24}{format_cell(value)}", file=stream)
+            print(f"  {name:<{width}}{format_cell(value)}", file=stream)
         print(f"\n  By repo:", file=stream)
         render_rows(prod["by_repo"], stream, indent="    ")
         print(f"\n  By developer:", file=stream)
