@@ -26,6 +26,7 @@ team already runs AI. Find your row:
 | **LiteLLM** already | [`recipes/litellm/`](recipes/litellm/) | Add Highflame as an upstream provider, or as a guardrail hook | Keep your routing and budgets; add the security + identity layer |
 | **AI agents from an IdP** (Google Workspace, Okta, Entra…) | [`recipes/agent-governance/`](recipes/agent-governance/) | Connect your IdP; adopt agents; attach a guardrail | Discover every agent, give each an accountable owner, and govern what it does at runtime |
 | **Registry connectors** (Entra, Okta, Google Workspace, Agent Engine, AWS Bedrock) | [`recipes/connectors/`](recipes/connectors/) | Configure the provider-side app / IAM / token Highflame needs | Wire Studio discovery so agents show up ready to adopt |
+| **Multi-agent systems** needing per-agent identity, delegation, and revocation | [`recipes/odis/`](recipes/odis/) | Register each agent; exchange a key for a short-lived credential; guard every action | ODIS-conformant agent identity: attributable principals, authority that can only narrow, sub-second revocation — with a conformance table to prove it |
 | **The OpenAI SDK / LangChain** from scratch | _coming soon_ | Point your base URL at Highflame | Policy enforcement + observability, zero instrumentation |
 | **Your own agents / framework** | _coming soon_ | A guard call + a per-agent identity | Inline guardrails and per-agent identity |
 
@@ -56,6 +57,7 @@ a real key.
 | [**Overwatch policy catalog**](recipes/overwatch-policies/) | What Overwatch catches for IDE coding agents (Cursor, Claude Code, Copilot) | Reference doc | ✅ ready |
 | [**Agent governance**](recipes/agent-governance/) | Discovering, adopting & guarding agents from Google Workspace / Okta / Entra | Python script | ✅ ready |
 | [**Registry connectors**](recipes/connectors/) | Provider setup for Entra, Okta, Google Workspace, Google Agent Engine, AWS Bedrock | Reference docs | ✅ ready |
+| [**ODIS agent identity**](recipes/odis/) | Per-agent identity, delegation, and governance across all three ODIS layers | Marimo notebook + scripts | ✅ ready |
 | OpenAI SDK / LangChain (greenfield) | New projects | — | coming soon |
 | Portkey | Teams on Portkey | — | coming soon |
 
@@ -80,19 +82,25 @@ pip install -r requirements.txt
 python <script named in the recipe README>
 ```
 
-### Marimo notebooks (SDK recipes)
+### Marimo notebooks
+
+Some recipes ship [Marimo](https://marimo.io) notebooks — reactive Python cells you run
+and edit in the browser. Today that's [`recipes/sdk/`](recipes/sdk/) (four notebooks) and
+[`recipes/odis/`](recipes/odis/) (`walkthrough.py`).
 
 ```bash
-cd recipes/sdk
+cd recipes/<recipe>
 pip install -r requirements.txt
-cp .env.example .env          # add your HIGHFLAME_API_KEY
-marimo run 01_quickstart.py   # interactive browser UI
+cp .env.example .env             # the recipe README says which vars it needs
+marimo run <notebook>.py         # interactive browser UI — the demo view
 ```
 
-Or open any notebook in the full editor:
+Or edit it live, run it headlessly, or export a static page to share:
 
 ```bash
-marimo edit 01_quickstart.py
+marimo edit <notebook>.py
+python <notebook>.py                             # executes every cell, no UI
+marimo export html <notebook>.py -o demo.html
 ```
 
 ---
