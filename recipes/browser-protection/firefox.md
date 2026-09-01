@@ -37,6 +37,10 @@ extension in Step 3.
 
 Open Firefox Add-ons (AMO) and install **Highflame Browser Security**.
 
+[Highflame Browser Security](https://addons.mozilla.org/en-US/firefox/addon/highflame-browser-security/)
+
+![firefox](images/firefox.png)
+
 After install, pin it:
 
 ```text
