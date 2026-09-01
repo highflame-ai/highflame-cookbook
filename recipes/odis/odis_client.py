@@ -37,6 +37,8 @@ Nothing here is Highflame-internal — every call is a documented HTTP endpoint.
 
 from __future__ import annotations
 
+import base64
+import json
 import os
 import time
 import uuid
@@ -219,6 +221,7 @@ class ControlPlane:
         framework: str = "",
         publisher: str = "",
         capabilities: list[str] | None = None,
+        credential_policy_id: str = "",
     ) -> dict[str, Any]:
         """Create an ODIS **Agent Registration Record**.
 
@@ -244,6 +247,8 @@ class ControlPlane:
                     "publisher": publisher,
                     "capabilities": capabilities or [],
                     "created_by": owner_user_id,
+                    **({"credential_policy_id": credential_policy_id}
+                       if credential_policy_id else {}),
                 },
             )
             record = dict(body["identity"])
@@ -262,13 +267,16 @@ class ControlPlane:
                     "framework": framework,
                     "publisher": publisher,
                     "capabilities": capabilities or [],
+                    **({"credential_policy_id": credential_policy_id}
+                       if credential_policy_id else {}),
                 },
             )
         self.created_identities.append(record["id"])
         return record
 
     def issue_key(
-        self, *, identity_id: str, name: str, scopes: list[str]
+        self, *, identity_id: str, name: str, scopes: list[str],
+        credential_policy_id: str = "",
     ) -> str:
         """Mint the bootstrap key an agent uses to obtain runtime credentials.
 
@@ -277,8 +285,92 @@ class ControlPlane:
         """
         return self._post(
             "/api-keys",
-            {"name": name, "identity_id": identity_id, "scopes": scopes},
+            {
+                "name": name, "identity_id": identity_id, "scopes": scopes,
+                # A key's policy may not be broader than its identity's, so when
+                # the identity is policy-restricted the key must carry the same
+                # one — otherwise the default (broader) policy is rejected.
+                **({"credential_policy_id": credential_policy_id}
+                   if credential_policy_id else {}),
+            },
         )["key"]
+
+    def create_credential_policy(
+        self,
+        *,
+        name: str,
+        max_ttl_seconds: int = 3600,
+        allowed_grant_types: list[str] | None = None,
+        required_trust_level: str = "",
+        required_attestation: str = "",
+    ) -> dict[str, Any]:
+        """Create a credential policy — the authority ceiling for an identity.
+
+        This is where attestation gating lives (ODIS-L1-11): set
+        ``required_attestation`` / ``required_trust_level`` and issuance is
+        refused until the identity actually satisfies them.
+
+        Note the coupling: the policy attached to an API key may not be
+        *broader* than the identity's, so when you restrict
+        ``allowed_grant_types`` you must attach the same policy to both — see
+        :meth:`issue_key`.
+        """
+        body: dict[str, Any] = {"name": name, "max_ttl_seconds": max_ttl_seconds}
+        if allowed_grant_types:
+            body["allowed_grant_types"] = allowed_grant_types
+        if required_trust_level:
+            body["required_trust_level"] = required_trust_level
+        if required_attestation:
+            body["required_attestation"] = required_attestation
+        return self._post("/credential-policies", body)
+
+    def set_trust_level(self, identity_id: str, trust_level: str) -> dict[str, Any]:
+        """Set an identity's trust level directly (admin path).
+
+        Real trust *promotion* comes from a verified attestation. This is the
+        administrative shortcut, used here only to show that the trust gate and
+        the attestation gate are two separate checks.
+        """
+        return self._patch(f"/identities/{identity_id}", {"trust_level": trust_level})
+
+    def delegation_graph(self, identity_id: str, *, depth: int = 3) -> dict[str, Any]:
+        """The delegation lineage centred on one identity (ODIS-CC-01/CC-02).
+
+        Credential records outlive the credentials themselves, so the graph
+        still answers "who acted for whom" after every token in it is dead.
+        """
+        r = httpx.get(
+            f"{self.base_url}{self.prefix}/delegations/graph",
+            headers=self._headers,
+            params={"identity_id": identity_id, "depth": depth},
+            timeout=self.timeout,
+        )
+        if r.status_code >= 400:
+            raise ODISRecipeError(f"delegation graph -> {r.status_code}: {r.text[:200]}")
+        return r.json()
+
+    def create_oauth_client(
+        self, *, client_id: str, name: str, identity_id: str, scopes: list[str]
+    ) -> dict[str, Any]:
+        """Register a confidential OAuth client (CIBA needs one)."""
+        return self._post(
+            "/oauth/clients",
+            {
+                "client_id": client_id,
+                "name": name,
+                "identity_id": identity_id,
+                "confidential": True,
+                "token_endpoint_auth_method": "client_secret_post",
+                "grant_types": ["urn:openid:params:grant-type:ciba"],
+                "scopes": scopes,
+            },
+        )
+
+    def approve_backchannel(self, auth_req_id: str, *, subject_id: str) -> dict[str, Any]:
+        """Stand in for the human tapping *approve* on their device."""
+        return self._post(
+            f"/oauth2/bc-authorize/{auth_req_id}/approve", {"subject_id": subject_id}
+        )
 
     def credentials(self, identity_id: str) -> list[dict[str, Any]]:
         """List issued credentials for an identity (the audit trail per agent)."""
@@ -342,6 +434,7 @@ class ControlPlane:
         scopes: list[str],
         trust_level: str = "unverified",
         public_key_pem: str = "",
+        credential_policy_id: str = "",
         **kwargs: Any,
     ) -> tuple[dict[str, Any], str]:
         """Register + issue a key in one step. Returns ``(record, bootstrap_key)``."""
@@ -351,6 +444,7 @@ class ControlPlane:
             allowed_scopes=scopes,
             trust_level=trust_level,
             public_key_pem=public_key_pem,
+            credential_policy_id=credential_policy_id,
             **kwargs,
         )
         # The registry surface already minted a bootstrap key as part of
@@ -358,7 +452,8 @@ class ControlPlane:
         key = record.pop("_api_key", None)
         if key is None:
             key = self.issue_key(
-                identity_id=record["id"], name=f"{external_id}-key", scopes=scopes
+                identity_id=record["id"], name=f"{external_id}-key", scopes=scopes,
+                credential_policy_id=credential_policy_id,
             )
         return record, key
 
@@ -366,6 +461,54 @@ class ControlPlane:
 # ---------------------------------------------------------------------------
 # Layer 1 — the runtime credential
 # ---------------------------------------------------------------------------
+
+
+def dpop_keypair() -> tuple[Any, dict[str, str], str]:
+    """Generate a DPoP key and its public JWK + RFC 7638 thumbprint.
+
+    DPoP (RFC 9449) is the strongest holder-of-key mechanism here: the issued
+    credential carries ``cnf.jkt`` — the thumbprint of this key — so a stolen
+    token cannot be replayed from a different client.
+    """
+    import hashlib
+
+    from cryptography.hazmat.primitives.asymmetric import ec
+
+    key = ec.generate_private_key(ec.SECP256R1())
+    nums = key.public_key().public_numbers()
+
+    def b64u(raw: bytes) -> str:
+        return base64.urlsafe_b64encode(raw).rstrip(b"=").decode()
+
+    jwk = {
+        "kty": "EC",
+        "crv": "P-256",
+        "x": b64u(nums.x.to_bytes(32, "big")),
+        "y": b64u(nums.y.to_bytes(32, "big")),
+    }
+    # RFC 7638: SHA-256 over the canonical JWK — members sorted, no whitespace.
+    canonical = json.dumps(
+        {"crv": jwk["crv"], "kty": jwk["kty"], "x": jwk["x"], "y": jwk["y"]},
+        separators=(",", ":"),
+        sort_keys=True,
+    ).encode()
+    return key, jwk, b64u(hashlib.sha256(canonical).digest())
+
+
+def dpop_proof(key: Any, jwk: dict[str, str], *, htm: str, htu: str) -> str:
+    """Build a single-use DPoP proof for one request.
+
+    The ``jti`` is what makes it single-use: the issuer keeps an atomic ledger
+    and rejects a proof it has already seen inside the freshness window.
+    """
+    import jwt as pyjwt
+
+    return pyjwt.encode(
+        {"jti": str(uuid.uuid4()), "htm": htm, "htu": htu, "iat": int(time.time())},
+        key,
+        algorithm="ES256",
+        headers={"typ": "dpop+jwt", "jwk": jwk},
+    )
 
 
 def new_holder_keypair() -> tuple[Any, str]:
@@ -509,6 +652,99 @@ def delegate(
 # ---------------------------------------------------------------------------
 # Layer 1/3 — verification
 # ---------------------------------------------------------------------------
+
+
+def token_with_dpop(
+    authn_url: str, bootstrap_key: str, *, key: Any, jwk: dict[str, str]
+) -> httpx.Response:
+    """Exchange a bootstrap key for a credential, sender-constrained with DPoP.
+
+    Returns the raw response so callers can inspect a refusal — the interesting
+    case is presenting the *same* proof twice.
+    """
+    htu = f"{authn_url.rstrip('/')}/oauth2/token"
+    return httpx.post(
+        htu,
+        headers={"DPoP": dpop_proof(key, jwk, htm="POST", htu=htu)},
+        json={"grant_type": "api_key", "api_key": bootstrap_key},
+        timeout=20,
+    )
+
+
+def replay_dpop(
+    authn_url: str, bootstrap_key: str, proof: str
+) -> httpx.Response:
+    """Re-present a DPoP proof that has already been used."""
+    return httpx.post(
+        f"{authn_url.rstrip('/')}/oauth2/token",
+        headers={"DPoP": proof},
+        json={"grant_type": "api_key", "api_key": bootstrap_key},
+        timeout=20,
+    )
+
+
+def backchannel_authorize(
+    authn_url: str,
+    *,
+    client_id: str,
+    client_secret: str,
+    account_id: str,
+    project_id: str,
+    scope: str,
+    login_hint: str,
+    binding_message: str,
+    authorization_details: list[dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    """Start a CIBA flow — ask a human to authorize, out of band (ODIS-L2-02).
+
+    ``authorization_details`` is RFC 9396 (RAR): the *specific* authority being
+    requested, which is bound into the approval and stamped into the issued
+    token. That is what makes the human's "yes" mean something narrower than
+    the agent's whole scope set.
+    """
+    body: dict[str, Any] = {
+        "client_id": client_id,
+        "client_secret": client_secret,
+        "account_id": account_id,
+        "project_id": project_id,
+        "scope": scope,
+        "login_hint": login_hint,
+        "binding_message": binding_message,
+    }
+    if authorization_details:
+        body["authorization_details"] = authorization_details
+    r = httpx.post(f"{authn_url.rstrip('/')}/oauth2/bc-authorize", json=body, timeout=20)
+    if r.status_code >= 400:
+        raise ODISRecipeError(f"bc-authorize -> {r.status_code}: {r.text[:200]}")
+    return r.json()
+
+
+def poll_ciba(
+    authn_url: str,
+    *,
+    auth_req_id: str,
+    client_id: str,
+    client_secret: str,
+    account_id: str,
+    project_id: str,
+) -> httpx.Response:
+    """Poll for the CIBA token. Returns the raw response.
+
+    Before approval this is a 400 carrying ``authorization_pending`` — an
+    expected state in the protocol, not an error to retry blindly.
+    """
+    return httpx.post(
+        f"{authn_url.rstrip('/')}/oauth2/token",
+        json={
+            "grant_type": "urn:openid:params:grant-type:ciba",
+            "auth_req_id": auth_req_id,
+            "client_id": client_id,
+            "client_secret": client_secret,
+            "account_id": account_id,
+            "project_id": project_id,
+        },
+        timeout=20,
+    )
 
 
 def verify_local(authn_url: str, token: str) -> dict[str, Any]:

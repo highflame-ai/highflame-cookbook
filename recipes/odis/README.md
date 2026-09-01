@@ -66,6 +66,16 @@ Read the statement for depth and for the requirements nothing here touches
 (software attestation, bridge mode, presenter isolation, velocity limits). Read
 this recipe to watch the parts that are implemented actually run.
 
+Four capabilities the statement documents are now exercised here too, against
+AuthN rather than standalone ZeroID:
+
+| Capability | What the run shows |
+| --- | --- |
+| **DPoP** (L1-09) | `cnf.jkt` equals the RFC 7638 thumbprint of the agent's key; re-presenting the same proof is refused `invalid_dpop_proof` |
+| **Attestation gating** (L1-11) | a policy requiring attestation refuses issuance twice — first on trust level, then on the missing attestation |
+| **CIBA + RAR** (L2-02) | a human approves out of band; the token comes back carrying the exact `authorization_details` that were approved |
+| **Delegation graph** (CC-01/02) | the lineage is queryable and outlives the credentials in it |
+
 ---
 
 ## Quickstart

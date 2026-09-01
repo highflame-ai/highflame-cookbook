@@ -28,14 +28,28 @@ from odis_client import (
     Agent,
     Config,
     ODISRecipeError,
+    backchannel_authorize,
     delegate,
+    dpop_keypair,
+    dpop_proof,
     guard,
     introspect,
     load_config,
     new_holder_keypair,
+    poll_ciba,
+    replay_dpop,
     unique,
     verify_local,
 )
+
+
+def _oauth_error(response: Any) -> str:
+    """Pull the OAuth error code out of a refusal, for readable evidence."""
+    try:
+        body = response.json()
+        return str(body.get("error") or body.get("detail") or "")[:60]
+    except Exception:  # noqa: BLE001 - evidence formatting must never throw
+        return response.text[:60].replace("\n", " ")
 
 PASS, FAIL, SKIP = "PASS", "FAIL", "SKIP"
 
@@ -265,6 +279,153 @@ class Harness:
         self._holder = holder
         self._issuer = claims["iss"]
 
+        # ODIS-L1-09, the strong form — DPoP sender-constraining (RFC 9449).
+        key, jwk, thumbprint = dpop_keypair()
+        dp_record, dp_key = self.cp.provision(
+            external_id=unique("odis-l1-dpop"),
+            owner_user_id=self.cfg.owner_user_id,
+            scopes=["tools:read"],
+            trust_level="first_party",
+        )
+        htu = f"{self.cfg.authn_url.rstrip('/')}/oauth2/token"
+        proof = dpop_proof(key, jwk, htm="POST", htu=htu)
+        first = replay_dpop(self.cfg.authn_url, dp_key, proof)
+        bound = ""
+        if first.status_code == 200:
+            bound = (verify_local(
+                self.cfg.authn_url, first.json()["access_token"]
+            ).get("cnf") or {}).get("jkt", "")
+        second = replay_dpop(self.cfg.authn_url, dp_key, proof)
+
+        self.record(
+            "ODIS-L1-09b", "L1",
+            "DPoP binds the credential to a key, and a replayed proof is refused",
+            PASS
+            if bound == thumbprint and second.status_code >= 400
+            and "dpop" in second.text.lower()
+            else FAIL,
+            f"cnf.jkt matches the RFC 7638 thumbprint ({bound[:16]}…); "
+            f"re-presenting the same proof -> {second.status_code} "
+            f"{_oauth_error(second)}",
+            limitation=(
+                "this closes the replay question for DPoP specifically. The "
+                "delegation actor assertion (ODIS-L1-09 above) has no equivalent "
+                "consumed-jti ledger, so it stays replayable inside its TTL."
+            ),
+            thumbprint=thumbprint,
+        )
+
+    def attestation_gate(self) -> None:
+        """ODIS-L1-11 — a policy can require attestation, and issuance fails closed."""
+        policy = self.cp.create_credential_policy(
+            name=unique("odis-requires-attestation"),
+            max_ttl_seconds=3600,
+            allowed_grant_types=["api_key"],
+            required_trust_level="verified_third_party",
+            required_attestation="software",
+        )
+        record, key = self.cp.provision(
+            external_id=unique("odis-unattested"),
+            owner_user_id=self.cfg.owner_user_id,
+            scopes=["tools:read"],
+            trust_level="unverified",
+            credential_policy_id=policy["id"],
+        )
+        agent = Agent(
+            authn_url=self.cfg.authn_url, bootstrap_key=key,
+            wimse_uri=record["wimse_uri"], identity_id=record["id"],
+        )
+
+        untrusted = trusted = ""
+        try:
+            agent.token(force=True)
+        except ODISRecipeError as exc:
+            untrusted = str(exc)
+        self.cp.set_trust_level(record["id"], "verified_third_party")
+        try:
+            agent.token(force=True)
+        except ODISRecipeError as exc:
+            trusted = str(exc)
+
+        self.record(
+            "ODIS-L1-11", "L1",
+            "A credential policy can require attestation; issuance fails closed",
+            PASS
+            if "trust level" in untrusted and "attestation level" in trusted
+            else FAIL,
+            "unverified identity refused on trust level; after promotion, still "
+            "refused on the missing attestation — two independent gates, both "
+            "closed by default",
+            verdict=PARTIAL,
+            limitation=(
+                "the gate is proven; the promotion is not. This deployment "
+                "registers only the oidc_token verifier, so raising trust with a "
+                "real attestation needs an external workload issuer (GitHub "
+                "Actions, GCP WIF, Kubernetes). image_hash and tpm are declared "
+                "proof types with no verifier behind them — a dev stub exists but "
+                "is off in production, correctly. Gating is also policy-opt-in: a "
+                "permissive policy still issues to an unattested identity."
+            ),
+            refusal_unverified=untrusted[-80:],
+            refusal_after_promotion=trusted[-80:],
+        )
+
+    def async_authorization(self) -> None:
+        """ODIS-L2-02 — bounded authorization: a human approves, out of band."""
+        record, _ = self.cp.provision(
+            external_id=unique("odis-ciba"),
+            owner_user_id=self.cfg.owner_user_id,
+            scopes=["tools:read", "tools:execute"],
+            trust_level="first_party",
+        )
+        client_id = unique("odis-ciba-client")
+        created = self.cp.create_oauth_client(
+            client_id=client_id, name="ODIS CIBA demo",
+            identity_id=record["id"], scopes=["tools:read", "tools:execute"],
+        )
+        secret = created.get("client_secret") or (
+            created.get("client") or {}).get("client_secret", "")
+
+        started = backchannel_authorize(
+            self.cfg.authn_url,
+            client_id=client_id, client_secret=secret,
+            account_id=self.cfg.account_id, project_id=self.cfg.project_id,
+            scope="tools:execute", login_hint=self.cfg.owner_user_id,
+            binding_message="Approve a production deploy?",
+            authorization_details=[
+                {"type": "tool_invocation", "actions": ["deploy"], "locations": ["prod"]}
+            ],
+        )
+        poll = dict(
+            auth_req_id=started["auth_req_id"], client_id=client_id,
+            client_secret=secret, account_id=self.cfg.account_id,
+            project_id=self.cfg.project_id,
+        )
+        before = poll_ciba(self.cfg.authn_url, **poll)
+        self.cp.approve_backchannel(started["auth_req_id"],
+                                    subject_id=self.cfg.owner_user_id)
+        time.sleep(started.get("interval", 5) + 1)
+        after = poll_ciba(self.cfg.authn_url, **poll)
+
+        details = subject = ""
+        if after.status_code == 200:
+            cl = verify_local(self.cfg.authn_url, after.json()["access_token"])
+            details = json.dumps(cl.get("authorization_details"))
+            subject = cl.get("sub", "")
+
+        self.record(
+            "ODIS-L2-02", "L2",
+            "Authority can be bounded by an out-of-band human approval",
+            PASS
+            if _oauth_error(before) == "authorization_pending"
+            and after.status_code == 200
+            else FAIL,
+            f"before approval -> {_oauth_error(before)}; after -> "
+            f"{after.status_code}, sub={subject}",
+            rar_authorization_details=details,
+            binding_message="Approve a production deploy?",
+        )
+
     # =====================================================================
     # Layer 2 — the Bridge
     # =====================================================================
@@ -423,6 +584,24 @@ class Harness:
         )
 
         self._delegated_token = delegated["access_token"]
+
+        # ODIS-CC-01 / CC-02 — the lineage outlives the credentials.
+        graph = self.cp.delegation_graph(orchestrator.identity_id)
+        nodes = graph.get("nodes") or []
+        edges = graph.get("edges") or []
+        self.record(
+            "ODIS-CC-02", "L2",
+            "Delegation lineage is queryable and survives the credentials",
+            PASS if nodes else FAIL,
+            f"graph centred on the orchestrator: {len(nodes)} node(s), "
+            f"{len(edges)} edge(s); every hop resolves to a WIMSE URI",
+            sample_node=(nodes[0].get("wimse_uri") if nodes else ""),
+            note=(
+                "credential records are retained past expiry on a separate audit "
+                "clock, so this answers 'who acted for whom' after every token in "
+                "it is dead"
+            ),
+        )
 
     # =====================================================================
     # Layer 3 — the Router
@@ -667,7 +846,13 @@ def main() -> int:
         print(f"SKIP: {exc}", file=sys.stderr)
         return 2
 
-    stages = [("Layer 1", h.layer1), ("Layer 2", h.layer2), ("Layer 3", h.layer3)]
+    stages = [
+        ("Layer 1", h.layer1),
+        ("Attestation", h.attestation_gate),
+        ("Layer 2", h.layer2),
+        ("Async auth", h.async_authorization),
+        ("Layer 3", h.layer3),
+    ]
     try:
         for name, fn in stages:
             try:

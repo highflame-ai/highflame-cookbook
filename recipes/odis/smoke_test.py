@@ -39,7 +39,9 @@ def main() -> int:
     try:
         for name, stage in (
             ("Layer 1", harness.layer1),
+            ("Attestation", harness.attestation_gate),
             ("Layer 2", harness.layer2),
+            ("Async auth", harness.async_authorization),
             ("Layer 3", harness.layer3),
         ):
             try:
