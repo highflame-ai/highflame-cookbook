@@ -48,6 +48,10 @@ role-capability statement mapping all 42 requirements to code and tests, with
 the same Meets/Partial/Gap vocabulary, drafted for submission to the CoSAI WS4
 workstream.
 
+> **Not published yet** — it is an internal draft, so this is a forward
+> reference rather than a link. Replace this paragraph with the URL once it
+> lands (expected in the `zeroid` repo under `docs/odis/`).
+
 The two are complementary, and where they disagree it is about **scope, not
 facts**:
 
