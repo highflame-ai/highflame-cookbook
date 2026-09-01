@@ -57,7 +57,7 @@ a real key.
 | [**Overwatch policy catalog**](recipes/overwatch-policies/) | What Overwatch catches for IDE coding agents (Cursor, Claude Code, Copilot) | Reference doc | ✅ ready |
 | [**Agent governance**](recipes/agent-governance/) | Discovering, adopting & guarding agents from Google Workspace / Okta / Entra | Python script | ✅ ready |
 | [**Registry connectors**](recipes/connectors/) | Provider setup for Entra, Okta, Google Workspace, Google Agent Engine, AWS Bedrock | Reference docs | ✅ ready |
-| [**ODIS agent identity**](recipes/odis/) | Per-agent identity, delegation, and governance across all three ODIS layers | Python scripts | ✅ ready |
+| [**ODIS agent identity**](recipes/odis/) | Per-agent identity, delegation, and governance across all three ODIS layers | Marimo notebook + scripts | ✅ ready |
 | OpenAI SDK / LangChain (greenfield) | New projects | — | coming soon |
 | Portkey | Teams on Portkey | — | coming soon |
 

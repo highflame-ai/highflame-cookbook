@@ -35,12 +35,24 @@ python odis_conformance.py  # the conformance table
 python secure_agent.py      # the pattern to copy into your codebase
 ```
 
-Two files matter:
-
 | File | What it's for |
 | --- | --- |
+| [`walkthrough.py`](walkthrough.py) | **Interactive [Marimo](https://marimo.io) notebook** — the three layers with narrative and live output. Best for demoing. |
 | [`odis_conformance.py`](odis_conformance.py) | Proves each ODIS requirement against your deployment. Use it as evidence, and in CI to catch regressions. `--json` for machine-readable output. |
 | [`secure_agent.py`](secure_agent.py) | ~60 lines: an orchestrator, a sub-agent with less authority, and a checkpoint consulted before every action. **This is the artifact to copy.** |
+
+### Showcasing it
+
+```bash
+marimo run walkthrough.py       # browser UI — the demo view
+marimo edit walkthrough.py      # full editor, cells you can change live
+python walkthrough.py           # executes every cell headlessly (CI-safe)
+marimo export html walkthrough.py -o odis.html   # a static page to share
+```
+
+The notebook makes the same real calls as the scripts — it imports
+`odis_client.py` rather than reimplementing anything — and it retires the
+identities it creates when it reaches the last cell.
 
 [`odis_client.py`](odis_client.py) is the shared helper both use. It is plain
 HTTP against documented endpoints — read it if you want to see exactly what goes
@@ -54,6 +66,25 @@ over the wire.
 3. **Enable at least one policy** under *Guardrails → Policies*. Without one the
    checkpoint fails **closed** — correct behaviour, but you'll see refusals
    rather than allows, and the conformance table will mark one check `SKIP`.
+
+   A **permissive baseline in monitor mode is the right setting for a demo
+   tenant**, and it does not weaken what this recipe demonstrates. Verified:
+
+   | Request | With a permissive baseline policy loaded |
+   | --- | --- |
+   | correctly-scoped `process_prompt` | `allow`, naming the policy that permitted it |
+   | `process_prompt` with only `tools:execute` | still `deny`, `insufficient_scope` (critical) |
+
+   The second row is the important one. The scope ceiling is evaluated
+   **before** Cedar, so `determining_policies` is `null` and the policy's mode
+   is never consulted — a permissive or monitor-mode policy **cannot** waive it.
+   That means one tenant configuration shows both the allow path *and* the
+   Layer-2-attenuation deny, which is exactly what you want in a demo.
+
+   The one thing you lose is the fail-closed demonstration: with policies
+   loaded, the "no policy could decide" path no longer triggers, so that check
+   flips to `SKIP` instead. The two are mutually exclusive by nature, and the
+   harness reports whichever applies.
 
 ---
 
