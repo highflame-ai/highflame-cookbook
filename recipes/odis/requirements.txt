@@ -1,0 +1,4 @@
+httpx>=0.27
+PyJWT[crypto]>=2.8      # holder-of-key assertions + offline JWKS verification
+cryptography>=42.0      # EC P-256 keypairs for proof-of-possession
+python-dotenv>=1.0
