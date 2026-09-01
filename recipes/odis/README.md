@@ -67,7 +67,9 @@ Read the statement for depth and for the requirements nothing here touches
 this recipe to watch the parts that are implemented actually run.
 
 Four capabilities the statement documents are now exercised here too, against
-AuthN rather than standalone ZeroID:
+AuthN rather than standalone ZeroID. They live in **`odis_conformance.py`** —
+the notebooks still walk the three layers only, so don't open `walkthrough.py`
+expecting to demo DPoP:
 
 | Capability | What the run shows |
 | --- | --- |
