@@ -39,6 +39,22 @@ from odis_client import (
 
 PASS, FAIL, SKIP = "PASS", "FAIL", "SKIP"
 
+# Two orthogonal axes, deliberately kept apart.
+#
+#   status  — did the behaviour this run exercised do what we expected?
+#             PASS/FAIL/SKIP. This is the regression signal CI cares about.
+#   verdict — how much of the ODIS requirement does the platform actually
+#             satisfy? Meets/Partial/Gap. This is the honesty signal.
+#
+# They are not the same thing, and collapsing them is how a conformance
+# artifact starts over-claiming: a green run against the slice of a
+# requirement you chose to test says nothing about the parts you skipped.
+# A check can PASS and still be a Partial — most of the interesting ones are.
+#
+# Verdict vocabulary follows the ZeroID ODIS role-capability statement, so the
+# two documents can be read side by side.
+MEETS, PARTIAL, GAP, NA = "Meets", "Partial", "Gap", "N/A"
+
 
 @dataclass
 class Check:
@@ -48,6 +64,8 @@ class Check:
     status: str = SKIP
     evidence: str = ""
     detail: dict[str, Any] = field(default_factory=dict)
+    verdict: str = MEETS
+    limitation: str = ""
 
 
 class Harness:
@@ -57,9 +75,20 @@ class Harness:
         self.cp = cfg.control_plane()
 
     def record(
-        self, req: str, layer: str, title: str, status: str, evidence: str, **detail: Any
+        self,
+        req: str,
+        layer: str,
+        title: str,
+        status: str,
+        evidence: str,
+        *,
+        verdict: str = MEETS,
+        limitation: str = "",
+        **detail: Any,
     ) -> None:
-        self.checks.append(Check(req, layer, title, status, evidence, detail))
+        self.checks.append(
+            Check(req, layer, title, status, evidence, detail, verdict, limitation)
+        )
 
     # -- helpers ----------------------------------------------------------
 
@@ -172,6 +201,14 @@ class Harness:
             "Agent authenticates with an ephemeral, verifiable credential",
             PASS if claims.get("sub") == record["wimse_uri"] else FAIL,
             f"JWKS-verified; sub={claims.get('sub')}",
+            verdict=PARTIAL,
+            limitation=(
+                "the credential is ephemeral and verifiable, but this run obtained it "
+                "with the api_key grant — a long-lived shared secret. ODIS-L1-01 is "
+                "secret-zero elimination; a static bootstrap key does not achieve it. "
+                "Private-key paths (RFC 7523 jwt-bearer, DPoP) exist and a credential "
+                "policy can exclude api_key per identity, but that is not the default."
+            ),
             jti=claims.get("jti"),
             issuer=claims.get("iss"),
         )
@@ -183,6 +220,13 @@ class Harness:
             "Credential lifetime is finite and bounded",
             PASS if 0 < ttl <= 86400 else FAIL,
             f"ttl={ttl}s (expires_in={tok.get('expires_in')})",
+            verdict=PARTIAL,
+            limitation=(
+                "lifetimes are finite and policy-bounded, but rotation is "
+                "client-initiated refresh. ODIS's 'MUST rotate automatically before "
+                "expiry' is the SDK's obligation in this architecture, not the "
+                "issuer's."
+            ),
             exp=claims.get("exp"),
         )
 
@@ -209,6 +253,13 @@ class Harness:
             PASS if assertion else FAIL,
             "sub-agent self-signs ES256 with a registered public key; "
             "the private half never leaves the process",
+            verdict=PARTIAL,
+            limitation=(
+                "holder binding is demonstrated on the delegation actor assertion. "
+                "It is not global: DPoP is per-request opt-in with a Bearer fallback, "
+                "and the api_key bootstrap path is a shared secret. The credential "
+                "used everywhere else in this run is a bearer token."
+            ),
             holder=holder.wimse_uri,
         )
         self._holder = holder
@@ -260,6 +311,16 @@ class Harness:
             and act.get("sub") == orchestrator.wimse_uri
             else FAIL,
             f"sub={dc.get('sub')} act.sub={act.get('sub')} depth={dc.get('delegation_depth')}",
+            verdict=PARTIAL,
+            limitation=(
+                "carried as JWT claims, which §6.3 permits — but an OAuth-native "
+                "carrier only inherits 6 of the 13 MUST fields. Absent: "
+                "originating_authorization_ref, resource_indicators, constraints, "
+                "attenuation_profile_ref. Partial: parent_delegation_ref (no digest "
+                "match), delegation_chain (single-level act, not the ordered hop "
+                "list), task_id (mission_id is a correlation key, not declared "
+                "purpose)."
+            ),
             delegation_id=dc.get("jti"),
             task_id=dc.get("mission_id"),
         )
@@ -292,6 +353,13 @@ class Harness:
             )
             if not widen_error
             else f"exchange refused: {widen_error[:120]}",
+            verdict=PARTIAL,
+            limitation=(
+                "narrowing is monotonic, but by set intersection over a controlled "
+                "scope vocabulary — lexical, not the semantic attenuation_profile_ref "
+                "mechanism ODIS-L2-06 specifies. Sufficient while the issuer owns the "
+                "vocabulary; insufficient for cross-vendor scope semantics."
+            ),
             orchestrator_scopes=parent.get("scope"),
             sub_agent_registered=sub_record.get("allowed_scopes") or sub_scopes,
         )
@@ -312,6 +380,14 @@ class Harness:
             "Effective authority is the intersection, and an empty one fails closed",
             PASS if refused and "invalid_scope" in refused else FAIL,
             f"requesting only 'tools:write' -> {('refused: ' + refused[:90]) if refused else 'ACCEPTED (unexpected)'}",
+            verdict=PARTIAL,
+            limitation=(
+                "the fail-closed behaviour is complete, but ODIS-L2-01 enumerates the "
+                "intersection's inputs as principal ∩ registration ∩ parent ∩ task ∩ "
+                "resource ∩ environmental constraints. This intersects scopes, depth "
+                "and TTL and resolves the registration; it models no task, resource or "
+                "constraint dimension."
+            ),
         )
 
         # ODIS-L2-14 — resolve to an active registration before granting authority.
@@ -368,6 +444,14 @@ class Harness:
             "Checkpoint emits a structured identity-context object",
             PASS if out.identity else FAIL,
             f"agent_identity={json.dumps(out.identity)}" if out.identity else "absent",
+            limitation=(
+                "note: the ZeroID role-capability statement marks L3-06 a Gap, "
+                "correctly — an authorization server has no policy checkpoint. "
+                "Highflame satisfies it in Shield, a separate component. Read the two "
+                "documents together: the AS-scoped statement and this platform-scoped "
+                "run disagree because they describe different scopes, not different "
+                "facts."
+            ),
             request_trace_id=out.request_id,
         )
 
@@ -457,6 +541,13 @@ class Harness:
                 if propagation is not None
                 else "checkpoint still accepted the credential after revocation"
             ),
+            verdict=PARTIAL,
+            limitation=(
+                "the mechanism works and is measured here, per run. ODIS-L3-04 asks "
+                "for a *declared, published* maximum latency, and ODIS-CC-03 for a "
+                "reproducible benchmark report. Neither exists — a number observed on "
+                "one developer machine is evidence, not a service level."
+            ),
             issuer_introspection=self._introspect_note(tok["access_token"]),
             caveat=(
                 "offline JWKS verification still accepts this credential until it "
@@ -517,9 +608,13 @@ def render(checks: list[Check], cfg: Config) -> None:
             continue
         print(f"\n{LAYER_NAMES[layer]}\n{'-' * 78}")
         for c in rows:
-            print(f"  [{GLYPH[c.status]}] {c.req:<14} {c.title}")
+            mark = "" if c.verdict == MEETS else f"  [{c.verdict}]"
+            print(f"  [{GLYPH[c.status]}] {c.req:<14} {c.title}{mark}")
             for line in _wrap(c.evidence, 68):
                 print(f"         {line}")
+            if c.limitation:
+                for line in _wrap(f"limitation — {c.limitation}", 66):
+                    print(f"           {line}")
             for k, v in c.detail.items():
                 if v:
                     print(f"           - {k}: {v}")
@@ -527,9 +622,20 @@ def render(checks: list[Check], cfg: Config) -> None:
     npass = sum(1 for c in checks if c.status == PASS)
     nfail = sum(1 for c in checks if c.status == FAIL)
     nskip = sum(1 for c in checks if c.status == SKIP)
+    nmeets = sum(1 for c in checks if c.verdict == MEETS and c.status != SKIP)
+    npartial = sum(1 for c in checks if c.verdict == PARTIAL)
+
     print("\n" + "=" * 78)
-    print(f"  {npass} passed, {nfail} failed, {nskip} skipped")
-    print("=" * 78 + "\n")
+    print(f"  behaviour : {npass} passed, {nfail} failed, {nskip} skipped")
+    print(f"  conformance: {nmeets} Meets, {npartial} Partial")
+    print("=" * 78)
+    print(
+        "\n  A PASS means the behaviour exercised did what was expected. It is NOT a\n"
+        "  conformance claim: several requirements are only partially satisfied, and\n"
+        "  the limitation notes above say how. Requirements this run does not touch\n"
+        "  at all (software/hardware attestation, bridge mode, presenter isolation,\n"
+        "  velocity limits) are absent rather than passing — see README.md.\n"
+    )
 
 
 def _wrap(text: str, width: int) -> list[str]:

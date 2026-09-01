@@ -11,9 +11,27 @@ governed at the point of use. It organises this into three layers:
 | **2 — The Bridge** | *Who* is this agent acting for, and with how much of their authority? |
 | **3 — The Router** | *What* may this specific request actually do, right now? |
 
-This recipe implements all three against a live Highflame deployment and prints
-a requirement-by-requirement conformance table. **Every row is produced by a
-real call** — nothing is asserted from documentation.
+This recipe exercises all three against a live Highflame deployment and prints a
+requirement-by-requirement table. **Every row is produced by a real call** —
+nothing is asserted from documentation.
+
+> **This is not an ODIS conformance claim.** ODIS §8 reserves *Core*, *Extended*
+> and *Safety* for a complete conformance target. This is a walkthrough with
+> evidence: it reports **Meets** or **Partial** per requirement, names the
+> limitation behind every Partial, and lists what it does not exercise at all.
+> Several things it demonstrates are only partially satisfied — that is stated
+> in the output, not buried here.
+
+### The vocabulary, mapped
+
+| ODIS term | In this recipe |
+| --- | --- |
+| Agent Registration Record (§6.1) | a ZeroID identity + its credential policy |
+| Agent Runtime Credential (§6.2) | a short-lived JWT, verified against the issuer's JWKS |
+| Delegation Record (§6.3) | an RFC 8693 exchange: `act` chain, `delegation_depth`, `mission_id` |
+| Identity Context Object (§6.4) | Shield's `agent_identity` on every guard decision |
+| Governance checkpoint (L3-02/06) | Shield: pre-Cedar scope ceiling, then policy |
+| Revocation / kill switch (L1-12, L3-04/05) | credential revoke + identity deactivation, measured at the checkpoint |
 
 > **Why this matters if you're rolling out agents.** The hard part of agent
 > security is not blocking bad prompts; it's that an agent is a *new kind of
@@ -22,6 +40,27 @@ real call** — nothing is asserted from documentation.
 > get an over-privileged, unattributable, un-revocable actor — the failure mode
 > behind most agent incidents. ODIS names the three things you need to fix that.
 > This recipe shows what each one costs to adopt: roughly 60 lines.
+
+### Related: the ZeroID role-capability statement
+
+There is a companion document scoped to **ZeroID alone** — an ODIS §8
+role-capability statement mapping all 42 requirements to code and tests, with
+the same Meets/Partial/Gap vocabulary, drafted for submission to the CoSAI WS4
+workstream.
+
+The two are complementary, and where they disagree it is about **scope, not
+facts**:
+
+- It covers ODIS **Layers 1–2** in depth, at the authorization-server level, and
+  declares Layer 3 out of role — an AS has no policy checkpoint, so L3-02 and
+  L3-06 are honest **Gaps** there.
+- This recipe is **platform-scoped**, so those same requirements are satisfied —
+  by Shield, a different component. It also runs against the AuthN-embedded
+  deployment rather than standalone ZeroID.
+
+Read the statement for depth and for the requirements nothing here touches
+(software attestation, bridge mode, presenter isolation, velocity limits). Read
+this recipe to watch the parts that are implemented actually run.
 
 ---
 
@@ -37,7 +76,8 @@ python secure_agent.py      # the pattern to copy into your codebase
 
 | File | What it's for |
 | --- | --- |
-| [`walkthrough.py`](walkthrough.py) | **Interactive [Marimo](https://marimo.io) notebook** — the three layers with narrative and live output. Best for demoing. |
+| [`walkthrough.py`](walkthrough.py) | **[Marimo](https://marimo.io) notebook** — the three layers with narrative and live output. Best for demoing. |
+| [`walkthrough.ipynb`](walkthrough.ipynb) | **The same notebook as Jupyter**, with outputs from a real run committed — readable without running anything. |
 | [`odis_conformance.py`](odis_conformance.py) | Proves each ODIS requirement against your deployment. Use it as evidence, and in CI to catch regressions. `--json` for machine-readable output. |
 | [`secure_agent.py`](secure_agent.py) | ~60 lines: an orchestrator, a sub-agent with less authority, and a checkpoint consulted before every action. **This is the artifact to copy.** |
 
@@ -49,6 +89,28 @@ marimo edit walkthrough.py      # full editor, cells you can change live
 python walkthrough.py           # executes every cell headlessly (CI-safe)
 marimo export html walkthrough.py -o odis.html   # a static page to share
 ```
+
+Prefer Jupyter? [`walkthrough.ipynb`](walkthrough.ipynb) is the same notebook,
+with the outputs of a real run committed — so it reads end-to-end in GitHub's
+viewer without a stack, an account, or a `pip install`.
+
+```bash
+jupyter notebook walkthrough.ipynb     # or just read it on GitHub
+```
+
+**One source, two formats.** The `.ipynb` is generated from `walkthrough.py`, so
+they cannot drift. Regenerate after any change to the notebook:
+
+```bash
+marimo export ipynb walkthrough.py -o walkthrough.ipynb \
+  --sort top-down --include-outputs
+```
+
+Because `--include-outputs` executes the notebook, the committed outputs are
+real. Two consequences worth knowing: re-running produces different identifiers,
+TTLs and timings (the semantics and status codes do not change), and the
+outputs are checked for credential material before committing — a bootstrap key
+or token in a committed cell would be a leak, not a demo.
 
 The notebook makes the same real calls as the scripts — it imports
 `odis_client.py` rather than reimplementing anything — and it retires the
