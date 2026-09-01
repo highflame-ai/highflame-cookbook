@@ -82,19 +82,25 @@ pip install -r requirements.txt
 python <script named in the recipe README>
 ```
 
-### Marimo notebooks (SDK recipes)
+### Marimo notebooks
+
+Some recipes ship [Marimo](https://marimo.io) notebooks — reactive Python cells you run
+and edit in the browser. Today that's [`recipes/sdk/`](recipes/sdk/) (four notebooks) and
+[`recipes/odis/`](recipes/odis/) (`walkthrough.py`).
 
 ```bash
-cd recipes/sdk
+cd recipes/<recipe>
 pip install -r requirements.txt
-cp .env.example .env          # add your HIGHFLAME_API_KEY
-marimo run 01_quickstart.py   # interactive browser UI
+cp .env.example .env             # the recipe README says which vars it needs
+marimo run <notebook>.py         # interactive browser UI — the demo view
 ```
 
-Or open any notebook in the full editor:
+Or edit it live, run it headlessly, or export a static page to share:
 
 ```bash
-marimo edit 01_quickstart.py
+marimo edit <notebook>.py
+python <notebook>.py                             # executes every cell, no UI
+marimo export html <notebook>.py -o demo.html
 ```
 
 ---
