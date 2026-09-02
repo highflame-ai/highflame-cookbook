@@ -30,7 +30,7 @@ Requires **Node.js 18** or newer.
 ```bash
 npm install -g @highflame/overwatch
 ```
-![chrome](images/chrome.png)
+![npm](images/npm.png)
 
 Confirm the CLI is on your PATH:
 
