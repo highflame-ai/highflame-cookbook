@@ -1,3 +1,0 @@
-# Both scripts use only the Python stdlib (urllib, csv, json). dotenv is an
-# optional convenience for loading .env.
-python-dotenv>=1.0.0
