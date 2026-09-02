@@ -1,0 +1,8 @@
+highflame[langgraph]
+langchain>=1.0
+langgraph>=0.2
+langchain-openai
+langchain-mcp-adapters
+mcp
+httpx
+python-dotenv
