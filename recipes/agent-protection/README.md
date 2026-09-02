@@ -9,21 +9,12 @@ Works with **Cursor**, **Claude Code**, **GitHub Copilot**, **Gemini CLI**,
 
 The package is [`@highflame/overwatch`](https://www.npmjs.com/package/@highflame/overwatch).
 
----
-
-## Step 1 — Sign in to Highflame Studio
-
-Sign in to **Highflame Studio**:
-
-[https://studio.highflame.ai](https://studio.highflame.ai)
-
-You need an account in the organization that should see this developer's agent
-traffic. Overwatch opens a browser on first start and signs you in; you do not
-paste an API key.
+You do not create an API key, and you do not run a separate sign-up command.
+`overwatch start` opens a browser to Highflame Studio and signs you in there.
 
 ---
 
-## Step 2 — Install Overwatch
+## Step 1 — Install Overwatch
 
 Requires **Node.js 18** or newer.
 
@@ -43,16 +34,24 @@ is installed automatically.
 
 ---
 
-## Step 3 — Connect Overwatch
-
-Start the daemon. On first run it opens a browser to authenticate with Studio,
-then attaches to every supported agent it finds on the machine:
+## Step 2 — Start Overwatch
 
 ```bash
 overwatch start
 ```
 
-Confirm you are signed in and that agents are attached:
+On first run (or after the session expires) it opens a browser to Studio:
+
+[https://studio.highflame.ai](https://studio.highflame.ai)
+
+Sign in with your Highflame account in that window. If you already have an
+account, that is all. If you do not, create one on that page — there is nothing
+to sign up for in the CLI.
+
+After login, Overwatch attaches to every supported agent it finds on the
+machine. Later `overwatch start` skips the browser if you are still signed in.
+
+Confirm:
 
 ```bash
 overwatch whoami
@@ -63,17 +62,11 @@ overwatch hooks
 You should see your Studio email, that Overwatch is running, and hooks for the
 agents installed on this machine. You do not run a separate install per agent.
 
-Optional — start Overwatch on login:
-
-```bash
-overwatch install-service
-```
-
 Restart any coding agent that was already open so it picks up the hooks.
 
 ---
 
-## Step 4 — Verify the Connection
+## Step 3 — Verify the Connection
 
 Use any attached agent (Cursor, Claude Code, Copilot, and so on), send a prompt,
 then check Studio:
@@ -96,7 +89,7 @@ hooks, see [`../overwatch-gateway-mode/`](../overwatch-gateway-mode/).
 | --- | --- |
 | **Package** | `@highflame/overwatch` (npm) |
 | **Install** | `npm install -g @highflame/overwatch` |
-| **Login** | `overwatch start` (Studio OAuth) |
+| **Login** | Happens in the browser on first `overwatch start` |
 | **Coverage** | Every supported agent detected on the machine |
 
 ---
