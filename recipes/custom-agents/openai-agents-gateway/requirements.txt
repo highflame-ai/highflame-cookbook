@@ -1,4 +1,0 @@
-openai-agents>=0.1
-openai>=1.50
-httpx
-python-dotenv

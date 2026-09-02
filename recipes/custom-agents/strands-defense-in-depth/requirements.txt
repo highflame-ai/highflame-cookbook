@@ -1,4 +1,0 @@
-highflame[strands]
-strands-agents>=1.0
-openai>=1.50
-python-dotenv
