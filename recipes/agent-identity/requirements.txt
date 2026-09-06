@@ -1,0 +1,7 @@
+highflame[strands]>=0.3.23
+strands-agents>=1.54
+boto3>=1.43
+python-dotenv>=1.0
+jupyterlab>=4.0
+# If imports fail with "module 'lib' has no attribute 'GEN_EMAIL'", a stale pyOpenSSL in
+# your environment is clashing with newer cryptography: pip install -U pyopenssl
