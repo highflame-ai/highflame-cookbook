@@ -1,4 +1,4 @@
-# Agent identity · a Strands agent on Bedrock with its own identity, authorization, guardrails and telemetry
+# Agent identity · Strands agents on Bedrock with their own identity, authorization, guardrails and telemetry
 
 **The value:** *"Our agents all run on one shared service key. When something goes wrong we
 can't tell which agent did it, we can't give one agent less access than another, and we
@@ -47,13 +47,22 @@ whole team.
 - *Optional:* an S3 bucket for `SESSION_BUCKET`, to persist the multi-agent conversation
   under the same id Highflame uses for its decisions.
 
+## Two notebooks
+
+| Notebook | Pattern | What it adds |
+| --- | --- | --- |
+| [`strands_bedrock_agent_identity.ipynb`](strands_bedrock_agent_identity.ipynb) | One agent, then an orchestrator calling specialists as tools | The four pillars on a single agent; delegated credentials per specialist |
+| [`strands_swarm_a2a_agent_identity.ipynb`](strands_swarm_a2a_agent_identity.ipynb) | A [Swarm](https://strandsagents.com/docs/user-guide/concepts/multi-agent/swarm/) of specialists that hand off to each other, plus a remote agent served over [A2A](https://strandsagents.com/docs/user-guide/concepts/multi-agent/agent-to-agent/) | Hand-offs authorized as tool calls; the remote agent verifies the caller's Highflame credential at its front door (`401` without one, `403` without the right permission) and runs its own guardrails as itself |
+
+Start with the first; the second assumes it.
+
 ## Run the proof
 
 ```bash
 cd recipes/agent-identity
 cp .env.example .env            # add your HIGHFLAME_API_KEY (and AWS_PROFILE if you use one)
 pip install -r requirements.txt
-jupyter lab strands_bedrock_agent_identity.ipynb
+jupyter lab                     # open either notebook
 ```
 
 Run the cells top to bottom. What you'll see:
@@ -67,6 +76,8 @@ Run the cells top to bottom. What you'll see:
 | Telemetry | Strands spans on the console; one decision's request ID, detectors and attribution printed |
 | Multi-agent | An orchestrator delegates to two specialists; the delegated credential is verified and its claims shown |
 | Clean up | The identities created by this run are removed |
+
+The A2A server in the second notebook listens on `127.0.0.1:9910`; set `A2A_PORT` in `.env` to change it.
 
 The smoke test covers the Highflame half without AWS:
 

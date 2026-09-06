@@ -1,5 +1,5 @@
 highflame[strands]>=0.3.23
-strands-agents>=1.54
+strands-agents[a2a]>=1.54      # [a2a] adds the A2A server/client used by the swarm notebook
 boto3>=1.43
 python-dotenv>=1.0
 jupyterlab>=4.0
