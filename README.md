@@ -62,6 +62,7 @@ a real key.
 | [**LiteLLM**](recipes/litellm/) | Teams already running LiteLLM | Python scripts | ✅ ready |
 | [**Overwatch policy catalog**](recipes/overwatch-policies/) | What Overwatch catches for IDE coding agents (Cursor, Claude Code, Copilot) | Reference doc | ✅ ready |
 | [**Agent governance**](recipes/agent-governance/) | Discovering, adopting & guarding agents from Google Workspace / Okta / Entra | Python script | ✅ ready |
+| [**Agent identity**](recipes/agent-identity/) | Giving Strands agents on Bedrock their own identity, authorization, guardrails and telemetry: single agent, orchestrator, Swarm, and a remote agent over A2A | Jupyter notebooks | ✅ ready |
 | [**Registry connectors**](recipes/connectors/) | Provider setup for Entra, Okta, Google Workspace, Google Agent Engine, AWS Bedrock | Reference docs | ✅ ready |
 | [**Browser protection**](recipes/browser-protection/) | Connect Highflame Browser Security in Chrome, Firefox, or Safari | Reference docs | ✅ ready |
 | [**Agent protection**](recipes/agent-protection/) | Connect Overwatch (`@highflame/overwatch` on npm); one install monitors every coding agent | Reference docs | ✅ ready |
