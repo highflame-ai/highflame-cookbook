@@ -55,7 +55,7 @@ whole team.
 | Option | What you set | What you get |
 | --- | --- | --- |
 | Straight to the provider | `OPENAI_API_KEY` | The four pillars. The model call itself is not governed. |
-| Through the gateway | `HIGHFLAME_GATEWAY_BASE_URL` plus `PROVIDER_API_KEY` | The model call becomes a governed, recorded event, attributed to the calling agent. |
+| Through the gateway | `HIGHFLAME_GATEWAY_BASE_URL` plus `PROVIDER_API_KEY` | The model call is inspected and recorded too, attributed to the calling agent. Whether it can be *refused* depends on the policies attached to the `ai_gateway` product; see [`recipes/ai-gateway/`](../ai-gateway/). |
 
 The gateway needs no key of its own. Two credentials travel in two headers and are not
 interchangeable. `X-Highflame-APIKey` says who is calling, and the notebook fills it with the

@@ -1,0 +1,3 @@
+openai>=1.0        # the gateway speaks the OpenAI API, so no Highflame library is needed
+python-dotenv>=1.0
+jupyterlab>=4.0
