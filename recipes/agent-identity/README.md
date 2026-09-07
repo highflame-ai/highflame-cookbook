@@ -31,14 +31,14 @@ whole team.
 
 ## Set it up in Studio
 
-1. **Create an API key.** [Highflame Studio](https://studio.highflame.ai) → **AI Gateway** →
-   **Settings** → **API Keys** → **Create API Key**. The value starts with `zid_sk_`, and it is
-   shown once, so copy it then. The notebook uses it only to register agent identities.
+1. **Register a client for yourself, and copy its key.** [Highflame Studio](https://studio.highflame.ai)
+   → **Registry** → **Agents** → **Inventory** → **Register Identity**, with type **Human Proxy**,
+   which is the type for something acting on behalf of a person. The key starts with `zid_sk_` and
+   is shown once, on creation, so copy it then.
 
-   Studio has no account-wide API-keys screen. Every key is created from a product's own API
-   Keys page, and they are all the same kind of key, so the one above works for this recipe
-   whichever page you made it on. `Settings` in the left sidebar does not create keys; its
-   `Account & API` section is read-only.
+   The notebooks use it only to register the agents they create, so every one of those
+   registrations is attributed to your client rather than to a shared key. That is the same
+   principle the rest of the recipe demonstrates, applied to you.
 2. **Have at least one guardrail policy enabled.** Policies live under each product, not in a
    top-level Policies screen. For these notebooks: Studio → **Custom Agents** → **Configure** →
    **Policies**. Injection & Jailbreak Detection is on by default for new accounts, and the
