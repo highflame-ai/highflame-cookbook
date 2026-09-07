@@ -3,5 +3,4 @@ strands-agents[a2a]>=1.54      # [a2a] adds the A2A server/client used by the sw
 boto3>=1.43
 python-dotenv>=1.0
 jupyterlab>=4.0
-# If imports fail with "module 'lib' has no attribute 'GEN_EMAIL'", a stale pyOpenSSL in
-# your environment is clashing with newer cryptography: pip install -U pyopenssl
+# If imports fail with "module 'lib' has no attribute 'GEN_EMAIL'", a stale pyOpenSSL in your environment is clashing with newer cryptography: pip install -U pyopenssl
