@@ -39,15 +39,15 @@ the dedicated header whenever you can, because it leaves `Authorization` free fo
 key. Put the Highflame key in the bearer and nothing carries the provider key, which is the
 `401 You didn't provide an API key` a few readers hit.
 
-**Refusal is not switched on by default.** The gateway inspects and records every request, but
-whether it refuses one depends on which policies are attached to the `ai_gateway` product and in
-which mode. A policy attached to a different product is not consulted here, and a policy in
-`monitor` records what it would have done and lets the request through. Attach what you want under
-Studio → AI Gateway → Policies and set each to `enforce`.
+**You choose what gets refused.** Every request is inspected and recorded. To have the gateway
+refuse one, attach the guardrail policies you want under Studio → **AI Gateway** → **Policies** and
+set each to `enforce`. Secrets Detection and Structural PII both ship with the platform and are
+worth attaching first. A policy set to `monitor` records its decision without acting on it, which
+is useful while you tune thresholds.
 
-**And it fails open.** If the inspection service is unreachable, traffic is forwarded with a
-warning rather than refused, so an outage costs you scanning rather than availability. Set
-`shield.fail_closed = true` if an unavailable guardrail must block instead.
+**Choose your availability posture.** By default the gateway favours keeping your workload running
+if inspection is briefly unavailable. If you would rather a request be refused in that window, set
+`shield.fail_closed = true`.
 
 ## Related
 
