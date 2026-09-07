@@ -30,8 +30,14 @@ jupyter lab                     # open gateway_quickstart.ipynb
 ## Two things that surprise people
 
 **The gateway is bring-your-own-key for OpenAI-compatible providers.** It forwards the
-`Authorization` header upstream and injects no provider key of its own, so `PROVIDER_API_KEY` is
-required. Your Highflame key goes in a different header and must never go in `Authorization`.
+`Authorization` header upstream and injects no provider key of its own, so on a default account
+`PROVIDER_API_KEY` is required.
+
+Your Highflame key is accepted in either `X-Highflame-APIKey` or `Authorization: Bearer`. The three
+tool guides above use the bearer, because Codex and Copilot can only send one credential. Prefer
+the dedicated header whenever you can, because it leaves `Authorization` free for your provider
+key. Put the Highflame key in the bearer and nothing carries the provider key, which is the
+`401 You didn't provide an API key` a few readers hit.
 
 **Refusal is not switched on by default.** The gateway inspects and records every request, but
 whether it refuses one depends on which policies are attached to the `ai_gateway` product and in
