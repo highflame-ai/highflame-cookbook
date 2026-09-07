@@ -41,9 +41,13 @@ key. Put the Highflame key in the bearer and nothing carries the provider key, w
 
 **Refusal is not switched on by default.** The gateway inspects and records every request, but
 whether it refuses one depends on which policies are attached to the `ai_gateway` product and in
-which mode. On a fresh account the only policy deciding there is a permit, and a policy attached to
-another product does not apply. Attach what you want under Studio → AI Gateway → Policies and set
-each to `enforce`.
+which mode. A policy attached to a different product is not consulted here, and a policy in
+`monitor` records what it would have done and lets the request through. Attach what you want under
+Studio → AI Gateway → Policies and set each to `enforce`.
+
+**And it fails open.** If the inspection service is unreachable, traffic is forwarded with a
+warning rather than refused, so an outage costs you scanning rather than availability. Set
+`shield.fail_closed = true` if an unavailable guardrail must block instead.
 
 ## Related
 
