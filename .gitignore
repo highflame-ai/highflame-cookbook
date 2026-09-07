@@ -8,3 +8,7 @@ venv/
 *.jsonl
 prompts.csv
 report.json
+
+# Jupyter writes checkpoint copies of every notebook. They are not ignored by
+# default, and a key pasted into a cell lands in one, so keep them out of git.
+.ipynb_checkpoints/
