@@ -20,6 +20,10 @@ if not api_key:
 from highflame import Highflame
 from highflame.zeroid import ToolScope, generate_keypair
 
+# Imported, not used: this is what makes CI fail when the LangGraph notebook's
+# dependencies break, since CI runs this file and never runs the notebooks.
+from highflame.integrations.langgraph import HighflameMiddleware  # noqa: F401
+
 admin = Highflame(api_key=api_key)
 run_id = uuid.uuid4().hex[:6]
 common = dict(
