@@ -1,6 +1,12 @@
-highflame[strands]>=0.3.23
+highflame[strands,langgraph]>=0.3.24,<0.4   # <0.4: pre-1.0 SDK, and 0.3.24 is the floor
+                                           # whose [langgraph] extra declares langchain
+# Strands notebooks
 strands-agents[a2a]>=1.54      # [a2a] adds the A2A server/client used by the swarm notebook
-boto3>=1.43
+boto3>=1.43                    # Amazon Bedrock
+# LangGraph notebook. langchain and langgraph themselves come from the [langgraph] extra.
+langchain>=1.0                 # HighflameMiddleware imports the umbrella package
+langchain-openai>=1.0          # the chat model the agents call, direct or via the gateway
+opentelemetry-sdk>=1.20        # console span exporter for the telemetry cell
 python-dotenv>=1.0
 jupyterlab>=4.0
 # If imports fail with "module 'lib' has no attribute 'GEN_EMAIL'", a stale pyOpenSSL in your environment is clashing with newer cryptography: pip install -U pyopenssl
