@@ -11,9 +11,10 @@ identical in both.
 
 1. **Agent identity.** Each agent is registered with Highflame and runs on its own key.
    Every decision Highflame makes is recorded against *that agent*.
-2. **Agent authorization.** Your policies decide which tools the agent may call, and each
-   refusal names the policy that made it. Authority handed to another agent is narrowed to what
-   the delegator holds, never widened.
+2. **Agent authorization.** Two layers. The agent's credential policy is a ceiling enforced when
+   a credential is issued — a scope outside it is refused before any policy runs. Your policies
+   then decide the rest, per tool, and each refusal names the policy that made it. Authority
+   handed to another agent is narrowed to what the delegator holds, never widened.
 3. **Agent runtime guardrails.** Each user prompt, tool call, tool result and model reply goes
    to Highflame before it proceeds, so prompt injection, data leaks and unsafe replies are
    stopped in flight.
@@ -136,6 +137,7 @@ Run the cells top to bottom. What you'll see:
 | --- | --- |
 | Connect as the agent | LangGraph: the Studio-registered agent, nothing registered from code. Strands: an identity and key are created for it. Either way `whoami()` shows the agent acting as itself |
 | Ask about an order | The agent answers through its tools; every check is allowed |
+| Ask for a scope outside its credential policy (LangGraph) | Refused at issuance with `invalid_scope`, before any policy or detector runs; a granted scope is issued exactly, a mix is narrowed and the token's `scopes` claim says which |
 | Ask it to delete an order | Allowed unless a per-tool policy is enabled; the cell says which happened, and whether the tool body actually ran |
 | Leak a card number (LangGraph) / try a prompt injection (Strands) | Refused before the model is called, naming the policy: `Refused by Highflame: Enterprise Policies Triggered: privacy.defaults` |
 | Telemetry | One line per span; one decision's request ID, the policies that decided it, the signals that fired, and its attribution |
