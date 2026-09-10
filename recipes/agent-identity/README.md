@@ -31,18 +31,40 @@ whole team.
 
 ## Set it up in Studio
 
-1. **Register a client for yourself, and copy its key.** [Highflame Studio](https://studio.highflame.ai)
-   → **Registry** → **Agents** → **Inventory** → **Register Identity**, with type **Human Proxy**,
-   which is the type for something acting on behalf of a person. The key starts with `zid_sk_` and
-   is shown once, on creation, so copy it then.
+1. **Register an identity in Studio, and copy its key.** [Highflame Studio](https://studio.highflame.ai)
+   → **Registry** → **Agents** → **Inventory** → **Register Identity**. The key starts with
+   `zid_sk_` and is shown once, on creation, so copy it then.
 
-   The notebooks use it only to register the agents they create, so every one of those
-   registrations is attributed to your client rather than to a shared key. That is the same
-   principle the rest of the recipe demonstrates, applied to you.
+   Which identity to register depends on which notebook you are running:
+
+   | Notebook | Register | Allowed scopes |
+   | --- | --- | --- |
+   | `langgraph_agent_identity` | type `agent`, sub type `orchestrator` | `nhi:manage`, `tools:read`, `tools:execute`, `orders:read`, `kb:read` |
+   | the two Strands notebooks | type **Human Proxy** — something acting for a person | `nhi:manage` |
+
+   In the LangGraph notebook this identity **is** the orchestrator: it registers the specialists
+   and delegates to them, so its scopes are the ceiling on everything it can hand out. Omit
+   `orders:read` or `kb:read` and delegation quietly narrows them away, leaving a specialist with
+   less authority than the code asked for and no error to say so. In the Strands notebooks the
+   identity only registers agents and never runs one.
+
+   Either way the registrations are attributed to your identity rather than to a shared key, which
+   is the same principle the rest of the recipe demonstrates, applied to you.
+
+   **`nhi:manage` is required in both cases, and Studio does not suggest it** — its scope picker
+   offers product-level scopes only. Without it the identity is created, the key works and
+   `whoami()` succeeds, and then the first registration fails with
+   `403 token missing nhi:manage scope`.
 2. **Have at least one guardrail policy enabled.** Policies live under each product, not in a
    top-level Policies screen. For these notebooks: Studio → **Custom Agents** → **Configure** →
-   **Policies**. Injection & Jailbreak Detection is on by default for new accounts, and the
-   notebook's blocked-prompt step relies on it.
+   **Policies**.
+
+   The LangGraph notebook's blocked-prompt step leaks a card number and a national ID, so it needs
+   a **PII** policy — the `privacy.defaults` template. That is deliberate: PII of that shape is
+   matched by deterministic pattern detectors, which run wherever Shield runs. Injection &
+   Jailbreak Detection is a model, so a deployment without the detector model servers allows the
+   attempt through and the step demonstrates nothing. The Strands notebooks still rely on injection
+   detection, which is on by default for new accounts.
 3. *Optional, and only for the second half of the authorization step:* a policy that refuses a
    tool outside an agent's `capabilities`. Without one, that cell reports "allowed" and says so.
    The first half of the authorization step needs nothing configured: it is refused on the
@@ -98,8 +120,10 @@ the first.
 
 ```bash
 cd recipes/agent-identity
-cp .env.example .env            # add HIGHFLAME_API_KEY, plus a model credential
-                                # (OPENAI_API_KEY, or the gateway variables; AWS_PROFILE for Strands)
+cp .env.example .env            # a model credential: OPENAI_API_KEY, or the gateway variables;
+                                # AWS_PROFILE for Strands. HIGHFLAME_API_KEY too for the Strands
+                                # notebooks -- the LangGraph one prompts for it when unset, so the
+                                # key stays out of the notebook's saved output.
 pip install -r requirements.txt
 jupyter lab                     # open any of the three notebooks
 ```
