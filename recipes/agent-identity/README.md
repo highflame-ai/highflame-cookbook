@@ -11,16 +11,15 @@ identical in both.
 
 1. **Agent identity.** Each agent is registered with Highflame and runs on its own key.
    Every decision Highflame makes is recorded against *that agent*.
-2. **Agent authorization.** Two layers. The agent's credential carries the permissions it
-   holds, checked before any policy runs, so an action it does not authorize is refused
-   outright. Your policies then decide the rest, including whether a specific tool is on the
-   agent's declared list.
+2. **Agent authorization.** Your policies decide which tools the agent may call, and each
+   refusal names the policy that made it. Authority handed to another agent is narrowed to what
+   the delegator holds, never widened.
 3. **Agent runtime guardrails.** Each user prompt, tool call, tool result and model reply goes
    to Highflame before it proceeds, so prompt injection, data leaks and unsafe replies are
    stopped in flight.
 4. **Agent telemetry.** Your OpenTelemetry spans and Highflame's decisions share one trace.
-   Each decision carries a request ID, a signed receipt, and, when the request asks for them,
-   every detector that ran.
+   Each decision carries a request ID, the policies that decided it, the signals that fired
+   and, when the request asks for them, every detector that ran.
 
 The **Multi-Agent** half turns the agent into an orchestrator that issues each specialist a
 short-lived credential of its own. Authority only narrows on the way down, every decision
@@ -35,24 +34,27 @@ whole team.
    → **Registry** → **Agents** → **Inventory** → **Register Identity**. The key starts with
    `zid_sk_` and is shown once, on creation, so copy it then.
 
-   Which identity to register depends on which notebook you are running:
+   An identity's authority ceiling is the **credential policy** attached to it at registration.
+   Create the policy first (**Registry** → **Policies** → **Create Policy**), then pick it when
+   you register the identity. Which identity, and which scopes on its policy, depends on the
+   notebook:
 
-   | Notebook | Register | Allowed scopes |
+   | Notebook | Register | Scopes on its credential policy |
    | --- | --- | --- |
    | `langgraph_agent_identity` | type `agent`, sub type `orchestrator` | `nhi:manage`, `tools:read`, `tools:execute`, `orders:read`, `kb:read` |
    | the two Strands notebooks | type **Human Proxy** — something acting for a person | `nhi:manage` |
 
    In the LangGraph notebook this identity **is** the orchestrator: it registers the specialists
-   and delegates to them, so its scopes are the ceiling on everything it can hand out. Omit
-   `orders:read` or `kb:read` and delegation quietly narrows them away, leaving a specialist with
-   less authority than the code asked for and no error to say so. In the Strands notebooks the
-   identity only registers agents and never runs one.
+   and delegates to them, so its policy's scopes are the ceiling on everything it can hand out.
+   Omit `orders:read` or `kb:read` and delegation quietly narrows them away, leaving a specialist
+   with less authority than the code asked for and no error to say so. In the Strands notebooks
+   the identity only registers agents and never runs one.
 
    Either way the registrations are attributed to your identity rather than to a shared key, which
    is the same principle the rest of the recipe demonstrates, applied to you.
 
-   **`nhi:manage` is required in both cases, and Studio does not suggest it** — its scope picker
-   offers product-level scopes only. Without it the identity is created, the key works and
+   **`nhi:manage` is required in both cases, and it is the one people miss.** It is what lets a
+   key register other identities. Without it the identity is created, the key works and
    `whoami()` succeeds, and then the first registration fails with
    `403 token missing nhi:manage scope`.
 2. **Have at least one guardrail policy enabled.** Policies live under each product, not in a
@@ -65,10 +67,10 @@ whole team.
    Jailbreak Detection is a model, so a deployment without the detector model servers allows the
    attempt through and the step demonstrates nothing. The Strands notebooks still rely on injection
    detection, which is on by default for new accounts.
-3. *Optional, and only for the second half of the authorization step:* a policy that refuses a
-   tool outside an agent's `capabilities`. Without one, that cell reports "allowed" and says so.
-   The first half of the authorization step needs nothing configured: it is refused on the
-   agent's credential. The notebook gives the exact Cedar rule for the second half.
+3. *Optional, for the authorization step:* a per-tool access policy that refuses `delete_order`.
+   Without one, that cell reports that the tool ran and says so — and says whether the tool body
+   actually ran, since a model declining on its own is not a refusal by Highflame. Enable one in
+   Studio and re-run to see the call refused, with the policy named.
 
 ## Set up a model
 
@@ -132,14 +134,13 @@ Run the cells top to bottom. What you'll see:
 
 | Step | What happens |
 | --- | --- |
-| Register the agent | An identity and key are created for the agent; `whoami()` shows the agent acting as itself |
+| Connect as the agent | LangGraph: the Studio-registered agent, nothing registered from code. Strands: an identity and key are created for it. Either way `whoami()` shows the agent acting as itself |
 | Ask about an order | The agent answers through its tools; every check is allowed |
-| Run an under-permissioned agent | Its prompt is allowed, its tool call is refused on the credential, before any policy or detector. Needs nothing configured |
-| Ask it to delete an order | A tool it was never granted; refused only if your account enforces capabilities, and the cell says which happened |
-| Try a prompt injection | Blocked before the model is called: `Blocked by Highflame: Enterprise Policies Triggered: Injection & Jailbreak Detection` |
-| Telemetry | Spans on the console; one decision's request ID, detectors and attribution printed |
-| Multi-agent | An orchestrator delegates to two specialists; the delegated credential is verified and its claims shown |
-| Clean up | The identities created by this run are removed |
+| Ask it to delete an order | Allowed unless a per-tool policy is enabled; the cell says which happened, and whether the tool body actually ran |
+| Leak a card number (LangGraph) / try a prompt injection (Strands) | Refused before the model is called, naming the policy: `Refused by Highflame: Enterprise Policies Triggered: privacy.defaults` |
+| Telemetry | One line per span; one decision's request ID, the policies that decided it, the signals that fired, and its attribution |
+| Multi-agent | The orchestrator delegates to two specialists; the delegated credential is verified and its claims shown. Optionally, deactivate a specialist in Studio and watch its still-valid credential be refused |
+| Clean up | The identities created by this run are deactivated; the Studio-registered agent is left alone |
 
 The A2A server in the second notebook listens on `127.0.0.1:9910`; set `A2A_PORT` in `.env` to change it.
 
@@ -164,8 +165,10 @@ python smoke_test.py            # registers, delegates, guards, verifies, cleans
   evaluated twice. Pass `optimize=True` to the middleware or hooks to run only the detectors your
   active policies reference. The notebooks leave it off so every detector shows up in the
   telemetry section.
-- **Delegation scopes.** The orchestrator requests exactly the specialist's own scopes.
-  Requesting more is narrowed silently; requesting nothing is refused.
+- **Delegation scopes.** The orchestrator requests exactly the specialist's own scopes. Two
+  rules decide what it gets: a requested scope the specialist may not hold refuses the whole
+  exchange with `invalid_scope`, and what survives is narrowed to what the orchestrator itself
+  holds — silently. Requesting nothing is refused.
 - **Bedrock Guardrails** can run alongside Highflame. They filter model input and output;
   Highflame decides per agent identity and also covers tool calls and results. The notebook
   leaves them off so every block you see comes from one place.
