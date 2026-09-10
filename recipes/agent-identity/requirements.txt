@@ -11,5 +11,4 @@ langchain-openai>=1.0          # the chat model the agents call, direct or via t
 opentelemetry-sdk>=1.20        # console span exporter for the telemetry cell
 python-dotenv>=1.0
 jupyterlab>=4.0
-# If imports fail with "module 'lib' has no attribute 'GEN_EMAIL'", a stale pyOpenSSL in
-# your environment is clashing with newer cryptography: pip install -U pyopenssl
+# If imports fail with "module 'lib' has no attribute 'GEN_EMAIL'", a stale pyOpenSSL in your environment is clashing with newer cryptography: pip install -U pyopenssl
