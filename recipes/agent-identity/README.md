@@ -132,10 +132,12 @@ python smoke_test.py            # registers, delegates, guards, verifies, cleans
   requests that follow it.
 - **`await` in the notebook.** Cells call `await agent.invoke_async(...)` (Strands) or
   `await agent.ainvoke(...)` (LangGraph) because Jupyter already runs an event loop.
-- **LangGraph needs the async entrypoint even outside a notebook.** `HighflameMiddleware`
-  implements its hooks as coroutines, and `agent.invoke()` raises
-  `InvalidUpdateError: Expected dict, got <coroutine object>` rather than guarding. Call
-  `ainvoke` from an async service, or `asyncio.run(...)` from a synchronous one.
+- **LangGraph guards from every entrypoint, but pick the one that suits your caller.**
+  `invoke`, `stream` and `batch` guard the same as `ainvoke` and `astream` (fixed in
+  `highflame` 0.3.25; before that the synchronous ones raised
+  `InvalidUpdateError: Expected dict, got <coroutine object>` and guarded nothing, see
+  highflame-ai/highflame-sdk#161). The synchronous ones make blocking calls, so use
+  `ainvoke` from an async service and inside a notebook, where a loop is already running.
 - **Cost in an agent loop.** A turn that uses one tool calls the model twice, so the prompt is
   evaluated twice. Pass `optimize=True` to the middleware or hooks to run only the detectors your
   active policies reference. The notebooks leave it off so every detector shows up in the
