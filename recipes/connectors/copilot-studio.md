@@ -45,7 +45,7 @@ To list bots from Dataverse (fallback when the inventory API is unavailable for 
 If that is not possible, assign **System Administrator** from security roles instead:
 **Environments → Default Environment → Settings → Security roles**
 
-[Role](images/copilot_role.png)
+![Role](images/copilot_role.png)
 
 If you are not a Dataverse System Administrator yourself, Entra Global Admin is not enough to assign that role in the UI. A tenant admin can self-elevate with Power Platform CLI:
 
