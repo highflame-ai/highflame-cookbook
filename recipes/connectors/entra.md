@@ -2,6 +2,8 @@
 
 This guide explains how to configure **Microsoft Entra ID** for the Highflame Registry connector.
 
+The same app registration also powers [Copilot Studio](copilot-studio.md) discovery. In Studio those are two different providers — pick **Copilot Studio** (not an Entra connector named “copilot”) and reuse the Tenant ID, Client ID, and client secret.
+
 ![Microsoft Entra connector configuration](images/entra_connector.png)
 
 ---
