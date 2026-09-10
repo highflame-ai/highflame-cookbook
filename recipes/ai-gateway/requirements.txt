@@ -1,0 +1,4 @@
+highflame>=0.3.24,<0.4  # registers the agent identities; the gateway calls need no library
+openai>=1.0             # the gateway speaks the OpenAI API
+python-dotenv>=1.0
+jupyterlab>=4.0
