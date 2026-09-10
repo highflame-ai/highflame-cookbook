@@ -58,16 +58,22 @@ whole team.
    key register other identities. Without it the identity is created, the key works and
    `whoami()` succeeds, and then the first registration fails with
    `403 token missing nhi:manage scope`.
-2. **Have at least one guardrail policy enabled.** Policies live under each product, not in a
-   top-level Policies screen. For these notebooks: Studio → **Custom Agents** → **Configure** →
-   **Policies**.
+2. **Deploy the guardrail policy templates from Studio.** Highflame ships its guardrails as
+   templates and enforces nothing until you deploy them; Cedar is default-deny, so a deployment
+   with no policies refuses every request outright. In Studio → **Guardrails** → **Policies**,
+   deploy in enforce mode:
 
-   The LangGraph notebook's blocked-prompt step leaks a card number and a national ID, so it needs
-   a **PII** policy — the `privacy.defaults` template. That is deliberate: PII of that shape is
-   matched by deterministic pattern detectors, which run wherever Shield runs. Injection &
-   Jailbreak Detection is a model, so a deployment without the detector model servers allows the
-   attempt through and the step demonstrates nothing. The Strands notebooks still rely on injection
-   detection, which is on by default for new accounts.
+   | Template | Why |
+   | --- | --- |
+   | `organization.permit-baseline` | Required. The permit everything else narrows; without it every guardrail call fails with `no policies loaded`. |
+   | `privacy.defaults` | The LangGraph notebook's blocked-prompt step leaks a card number and a national ID. PII of that shape is matched by deterministic pattern detectors, which run wherever Shield runs. |
+   | `data-protection.defaults` | The leaked-credential signals in the LangGraph telemetry step. |
+
+   Deploy them from the UI rather than seeding them by script: the deployment is then recorded,
+   attributed and reversible like any other policy change. Injection & Jailbreak Detection is a
+   model, so a deployment without the detector model servers allows the attempt through and a
+   step built on it demonstrates nothing; the Strands notebooks still rely on it, and it is on by
+   default for new hosted accounts.
 3. **Allow-list what the LangGraph agent may do.** Open the identity in Studio's Registry, go to
    its **Policies** page, switch **Access** to **Enforcing**, and add two grants: **Send prompts →
    Allow all**, and **Call tool →** `lookup_order`, `search_kb`, `ask_orders_specialist`,
