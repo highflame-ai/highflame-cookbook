@@ -59,21 +59,20 @@ whole team.
    `whoami()` succeeds, and then the first registration fails with
    `403 token missing nhi:manage scope`.
 2. **Deploy the guardrail policy templates from Studio.** Highflame ships its guardrails as
-   templates and enforces nothing until you deploy them; Cedar is default-deny, so a deployment
-   with no policies refuses every request outright. In Studio → **Guardrails** → **Policies**,
-   deploy in enforce mode:
+   templates and enforces nothing until you deploy them. In Studio → **Guardrails** →
+   **Policies**, deploy from the template catalog:
 
-   | Template | Why |
-   | --- | --- |
-   | `organization.permit-baseline` | Required. The permit everything else narrows; without it every guardrail call fails with `no policies loaded`. |
-   | `privacy.defaults` | The LangGraph notebook's blocked-prompt step leaks a card number and a national ID. PII of that shape is matched by deterministic pattern detectors, which run wherever Shield runs. |
-   | `data-protection.defaults` | The leaked-credential signals in the LangGraph telemetry step. |
+   | Template | Mode | Why |
+   | --- | --- | --- |
+   | **Permit baseline** (`organization.permit-baseline`) | enforce | Required. Cedar is default-deny. The LangGraph agent's allow-list (step 3) permits its prompts and tool calls, but the middleware also checks every tool result and model reply, and nothing else permits those — without this, the first tool result is refused with no policy named. |
+   | **Structural PII** (`privacy.defaults`) | enforce | The LangGraph notebook's blocked-prompt step leaks a card number and a national ID. PII of that shape is matched by deterministic pattern detectors, which run wherever Shield runs. |
+   | **Secrets Detection** (`data-protection.defaults`) | monitor | The LangGraph telemetry step leaks an API key. In monitor mode it is observed and recorded, not blocked, which is what that step demonstrates. |
 
-   Deploy them from the UI rather than seeding them by script: the deployment is then recorded,
-   attributed and reversible like any other policy change. Injection & Jailbreak Detection is a
-   model, so a deployment without the detector model servers allows the attempt through and a
-   step built on it demonstrates nothing; the Strands notebooks still rely on it, and it is on by
-   default for new hosted accounts.
+   Deploy from the UI rather than seeding by script: the deployment is then recorded, attributed
+   and reversible like any other policy change. Injection & Jailbreak
+   Detection is a model, so a deployment without the detector model servers allows the attempt
+   through and a step built on it demonstrates nothing; the Strands notebooks still rely on it,
+   and it is on by default for new hosted accounts.
 3. **Allow-list what the LangGraph agent may do.** Open the identity in Studio's Registry, go to
    its **Policies** page, switch **Access** to **Enforcing**, and add two grants: **Send prompts →
    Allow all**, and **Call tool →** `lookup_order`, `search_kb`, `ask_orders_specialist`,
