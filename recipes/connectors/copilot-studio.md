@@ -42,19 +42,19 @@ To list bots from Dataverse (fallback when the inventory API is unavailable for 
 2. That environment must have **Dataverse**.
 3. **Settings → Users + permissions → Application users → New app user**.
 4. Add the same app → business unit of that environment → security role **System Administrator**.
-
 If that is not possible, assign **System Administrator** from security roles instead:
-
 **Environments → Default Environment → Settings → Security roles**
 
-Turn **Display only parent security roles** on if the list is long. Open **⋯** on **System Administrator** → **Members**, and add the user (or the application user). Role membership lives on the **security role** row — the **⋯** on a user row is often only **Change channel**.
+[Role](images/copilot_role.png)
 
-If the UI still says you do not hold the necessary privileges, Entra Global Admin is not enough. A tenant admin can self-elevate with Power Platform CLI, then retry step 4 or **Members**:
+If you are not a Dataverse System Administrator yourself, Entra Global Admin is not enough to assign that role in the UI. A tenant admin can self-elevate with Power Platform CLI:
 
 ```powershell
 pac auth create
 pac admin self-elevate --environment <environment-id>
 ```
+
+Then add the application user.
 
 ---
 
@@ -111,17 +111,6 @@ A sync of **OK** with **zero agents** still means connected when the tenant has 
 | **Tenant ID**     | Directory (tenant) ID                    |
 | **Client ID**     | Application (client) ID                  |
 | **Client secret** | Client secret **Value** (same as Entra)  |
-
----
-
-## Optional — Create a Test Agent
-
-To prove a live row (not only an empty sync):
-
-1. Assign **Microsoft Copilot Studio Viral Trial** (or a paid Copilot Studio license) to the user who will create the agent. Do not buy extra packs only for this test.
-2. Open [Copilot Studio](https://copilotstudio.microsoft.com) in the **Default** (or Dataverse) environment.
-3. Create and save an agent with a unique name.
-4. **Sync now** on the Copilot connector, then check **Unmanaged**.
 
 ---
 
