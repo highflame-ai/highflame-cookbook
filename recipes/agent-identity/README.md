@@ -68,10 +68,16 @@ whole team.
    Jailbreak Detection is a model, so a deployment without the detector model servers allows the
    attempt through and the step demonstrates nothing. The Strands notebooks still rely on injection
    detection, which is on by default for new accounts.
-3. *Optional, for the authorization step:* a per-tool access policy that refuses `delete_order`.
-   Without one, that cell reports that the tool ran and says so — and says whether the tool body
-   actually ran, since a model declining on its own is not a refusal by Highflame. Enable one in
-   Studio and re-run to see the call refused, with the policy named.
+3. **Allow-list what the LangGraph agent may do.** Open the identity in Studio's Registry, go to
+   its **Policies** page, switch **Access** to **Enforcing**, and add two grants: **Send prompts →
+   Allow all**, and **Call tool →** `lookup_order`, `search_kb`, `ask_orders_specialist`,
+   `ask_kb_specialist` (leave the MCP server field empty — these are local tools). Every action is
+   locked once enforcement is on, so this ledger is the complete list of what the agent may do;
+   `delete_order` is deliberately not on it, and that is what refuses it in the authorization step.
+   Send prompts is the grant people forget: without it the first turn is refused. Only this agent
+   is switched to enforcing; the project stays in shadow, so the specialists registered from code
+   are unaffected. Skip this step and the authorization cell reports the other state honestly —
+   the tool ran, and it says so.
 
 ## Set up a model
 
@@ -138,7 +144,7 @@ Run the cells top to bottom. What you'll see:
 | Connect as the agent | LangGraph: the Studio-registered agent, nothing registered from code. Strands: an identity and key are created for it. Either way `whoami()` shows the agent acting as itself |
 | Ask about an order | The agent answers through its tools; every check is allowed |
 | Ask for a scope outside its credential policy (LangGraph) | Refused at issuance with `invalid_scope`, before any policy or detector runs; a granted scope is issued exactly, a mix is narrowed and the token's `scopes` claim says which |
-| Ask it to delete an order | Allowed unless a per-tool policy is enabled; the cell says which happened, and whether the tool body actually ran |
+| Ask it to delete an order | Refused by the allow-list before the tool body runs: `Authorization Grants — call_tool`. Without the allow-list the cell says the tool ran, and whether it actually did |
 | Leak a card number (LangGraph) / try a prompt injection (Strands) | Refused before the model is called, naming the policy: `Refused by Highflame: Enterprise Policies Triggered: privacy.defaults` |
 | Telemetry | One line per span; one decision's request ID, the policies that decided it, the signals that fired, and its attribution |
 | Multi-agent | The orchestrator delegates to two specialists; the delegated credential is verified and its claims shown. Optionally, deactivate a specialist in Studio and watch its still-valid credential be refused |
