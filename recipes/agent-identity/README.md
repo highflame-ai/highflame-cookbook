@@ -11,16 +11,16 @@ identical in both.
 
 1. **Agent identity.** Each agent is registered with Highflame and runs on its own key.
    Every decision Highflame makes is recorded against *that agent*.
-2. **Agent authorization.** Two layers. The agent's credential carries the permissions it
-   holds, checked before any policy runs, so an action it does not authorize is refused
-   outright. Your policies then decide the rest, including whether a specific tool is on the
-   agent's declared list.
+2. **Agent authorization.** Two layers. The agent's credential policy is a ceiling enforced when
+   a credential is issued — a scope outside it is refused before any policy runs. Your policies
+   then decide the rest, per tool, and each refusal names the policy that made it. Authority
+   handed to another agent is narrowed to what the delegator holds, never widened.
 3. **Agent runtime guardrails.** Each user prompt, tool call, tool result and model reply goes
    to Highflame before it proceeds, so prompt injection, data leaks and unsafe replies are
    stopped in flight.
 4. **Agent telemetry.** Your OpenTelemetry spans and Highflame's decisions share one trace.
-   Each decision carries a request ID, a signed receipt, and, when the request asks for them,
-   every detector that ran.
+   Each decision carries a request ID, the policies that decided it, the signals that fired
+   and, when the request asks for them, every detector that ran.
 
 The **Multi-Agent** half turns the agent into an orchestrator that issues each specialist a
 short-lived credential of its own. Authority only narrows on the way down, every decision
@@ -31,22 +31,58 @@ whole team.
 
 ## Set it up in Studio
 
-1. **Register a client for yourself, and copy its key.** [Highflame Studio](https://studio.highflame.ai)
-   → **Registry** → **Agents** → **Inventory** → **Register Identity**, with type **Human Proxy**,
-   which is the type for something acting on behalf of a person. The key starts with `zid_sk_` and
-   is shown once, on creation, so copy it then.
+1. **Register an identity in Studio, and copy its key.** [Highflame Studio](https://studio.highflame.ai)
+   → **Registry** → **Agents** → **Inventory** → **Register Identity**. The key starts with
+   `zid_sk_` and is shown once, on creation, so copy it then.
 
-   The notebooks use it only to register the agents they create, so every one of those
-   registrations is attributed to your client rather than to a shared key. That is the same
-   principle the rest of the recipe demonstrates, applied to you.
-2. **Have at least one guardrail policy enabled.** Policies live under each product, not in a
-   top-level Policies screen. For these notebooks: Studio → **Custom Agents** → **Configure** →
-   **Policies**. Injection & Jailbreak Detection is on by default for new accounts, and the
-   notebook's blocked-prompt step relies on it.
-3. *Optional, and only for the second half of the authorization step:* a policy that refuses a
-   tool outside an agent's `capabilities`. Without one, that cell reports "allowed" and says so.
-   The first half of the authorization step needs nothing configured: it is refused on the
-   agent's credential. The notebook gives the exact Cedar rule for the second half.
+   An identity's authority ceiling is the **credential policy** attached to it at registration.
+   Create the policy first (**Registry** → **Policies** → **Create Policy**), then pick it when
+   you register the identity. Which identity, and which scopes on its policy, depends on the
+   notebook:
+
+   | Notebook | Register | Scopes on its credential policy |
+   | --- | --- | --- |
+   | `langgraph_agent_identity` | type `agent`, sub type `orchestrator` | `nhi:manage`, `tools:read`, `tools:execute`, `orders:read`, `kb:read` |
+   | the two Strands notebooks | type **Human Proxy** — something acting for a person | `nhi:manage` |
+
+   In the LangGraph notebook this identity **is** the orchestrator: it registers the specialists
+   and delegates to them, so its policy's scopes are the ceiling on everything it can hand out.
+   Omit `orders:read` or `kb:read` and delegation quietly narrows them away, leaving a specialist
+   with less authority than the code asked for and no error to say so. In the Strands notebooks
+   the identity only registers agents and never runs one.
+
+   Either way the registrations are attributed to your identity rather than to a shared key, which
+   is the same principle the rest of the recipe demonstrates, applied to you.
+
+   **`nhi:manage` is required in both cases, and it is the one people miss.** It is what lets a
+   key register other identities. Without it the identity is created, the key works and
+   `whoami()` succeeds, and then the first registration fails with
+   `403 token missing nhi:manage scope`.
+2. **Deploy the guardrail policy templates from Studio.** Highflame ships its guardrails as
+   templates and enforces nothing until you deploy them. In Studio → **Guardrails** →
+   **Policies**, deploy from the template catalog:
+
+   | Template | Mode | Why |
+   | --- | --- | --- |
+   | **Permit baseline** (`organization.permit-baseline`) | enforce | Required. Cedar is default-deny. The LangGraph agent's allow-list (step 3) permits its prompts and tool calls, but the middleware also checks every tool result and model reply, and nothing else permits those — without this, the first tool result is refused with no policy named. |
+   | **Structural PII** (`privacy.defaults`) | enforce | The LangGraph notebook's blocked-prompt step leaks a card number and a national ID. PII of that shape is matched by deterministic pattern detectors, which run wherever Shield runs. |
+   | **Secrets Detection** (`data-protection.defaults`) | monitor | The LangGraph telemetry step leaks an API key. In monitor mode it is observed and recorded, not blocked, which is what that step demonstrates. |
+
+   Deploy from the UI rather than seeding by script: the deployment is then recorded, attributed
+   and reversible like any other policy change. Injection & Jailbreak
+   Detection is a model, so a deployment without the detector model servers allows the attempt
+   through and a step built on it demonstrates nothing; the Strands notebooks still rely on it,
+   and it is on by default for new hosted accounts.
+3. **Allow-list what the LangGraph agent may do.** Open the identity in Studio's Registry, go to
+   its **Policies** page, switch **Access** to **Enforcing**, and add two grants: **Send prompts →
+   Allow all**, and **Call tool →** `lookup_order`, `search_kb`, `ask_orders_specialist`,
+   `ask_kb_specialist` (leave the MCP server field empty — these are local tools). Every action is
+   locked once enforcement is on, so this ledger is the complete list of what the agent may do;
+   `delete_order` is deliberately not on it, and that is what refuses it in the authorization step.
+   Send prompts is the grant people forget: without it the first turn is refused. Only this agent
+   is switched to enforcing; the project stays in shadow, so the specialists registered from code
+   are unaffected. Skip this step and the authorization cell reports the other state honestly —
+   the tool ran, and it says so.
 
 ## Set up a model
 
@@ -98,8 +134,10 @@ the first.
 
 ```bash
 cd recipes/agent-identity
-cp .env.example .env            # add HIGHFLAME_API_KEY, plus a model credential
-                                # (OPENAI_API_KEY, or the gateway variables; AWS_PROFILE for Strands)
+cp .env.example .env            # a model credential: OPENAI_API_KEY, or the gateway variables;
+                                # AWS_PROFILE for Strands. HIGHFLAME_API_KEY too for the Strands
+                                # notebooks -- the LangGraph one prompts for it when unset, so the
+                                # key stays out of the notebook's saved output.
 pip install -r requirements.txt
 jupyter lab                     # open any of the three notebooks
 ```
@@ -108,14 +146,14 @@ Run the cells top to bottom. What you'll see:
 
 | Step | What happens |
 | --- | --- |
-| Register the agent | An identity and key are created for the agent; `whoami()` shows the agent acting as itself |
+| Connect as the agent | LangGraph: the Studio-registered agent, nothing registered from code. Strands: an identity and key are created for it. Either way `whoami()` shows the agent acting as itself |
 | Ask about an order | The agent answers through its tools; every check is allowed |
-| Run an under-permissioned agent | Its prompt is allowed, its tool call is refused on the credential, before any policy or detector. Needs nothing configured |
-| Ask it to delete an order | A tool it was never granted; refused only if your account enforces capabilities, and the cell says which happened |
-| Try a prompt injection | Blocked before the model is called: `Blocked by Highflame: Enterprise Policies Triggered: Injection & Jailbreak Detection` |
-| Telemetry | Spans on the console; one decision's request ID, detectors and attribution printed |
-| Multi-agent | An orchestrator delegates to two specialists; the delegated credential is verified and its claims shown |
-| Clean up | The identities created by this run are removed |
+| Ask for a scope outside its credential policy (LangGraph) | Refused at issuance with `invalid_scope`, before any policy or detector runs; a granted scope is issued exactly, a mix is narrowed and the token's `scopes` claim says which |
+| Ask it to delete an order | Refused by the allow-list before the tool body runs: `Authorization Grants — call_tool`. Without the allow-list the cell says the tool ran, and whether it actually did |
+| Leak a card number (LangGraph) / try a prompt injection (Strands) | Refused before the model is called, naming the policy: `Refused by Highflame: Enterprise Policies Triggered: privacy.defaults` |
+| Telemetry | One line per span; one decision's request ID, the policies that decided it, the signals that fired, and its attribution |
+| Multi-agent | The orchestrator delegates to two specialists; the delegated credential is verified and its claims shown. Optionally, deactivate a specialist in Studio and watch its still-valid credential be refused |
+| Clean up | The identities created by this run are deactivated; the Studio-registered agent is left alone |
 
 The A2A server in the second notebook listens on `127.0.0.1:9910`; set `A2A_PORT` in `.env` to change it.
 
@@ -140,8 +178,10 @@ python smoke_test.py            # registers, delegates, guards, verifies, cleans
   evaluated twice. Pass `optimize=True` to the middleware or hooks to run only the detectors your
   active policies reference. The notebooks leave it off so every detector shows up in the
   telemetry section.
-- **Delegation scopes.** The orchestrator requests exactly the specialist's own scopes.
-  Requesting more is narrowed silently; requesting nothing is refused.
+- **Delegation scopes.** The orchestrator requests exactly the specialist's own scopes. Two
+  rules decide what it gets: a requested scope the specialist may not hold refuses the whole
+  exchange with `invalid_scope`, and what survives is narrowed to what the orchestrator itself
+  holds — silently. Requesting nothing is refused.
 - **Bedrock Guardrails** can run alongside Highflame. They filter model input and output;
   Highflame decides per agent identity and also covers tool calls and results. The notebook
   leaves them off so every block you see comes from one place.
