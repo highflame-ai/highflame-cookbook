@@ -65,7 +65,7 @@ whole team.
 
    | Template | Mode | Why |
    | --- | --- | --- |
-   | **Structural PII** (`privacy.defaults`) | enforce | The LangGraph notebook's blocked-prompt step leaks a card number and a national ID. PII of that shape is matched by deterministic pattern detectors, which run wherever Shield runs. |
+   | **Structural PII** (`privacy.defaults`) | enforce | The LangGraph notebook's blocked-prompt step leaks a card number and a national ID. PII of that shape is matched by deterministic pattern detectors, which run on every deployment. |
    | **Secrets Detection** (`data-protection.defaults`) | monitor | The LangGraph telemetry step leaks an API key. In monitor mode it is observed and recorded, not blocked, which is what that step demonstrates. |
 
    The gateway notebook is decided by the **AI Gateway** product's policies instead: deploy the
