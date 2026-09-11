@@ -65,14 +65,22 @@ whole team.
 
    | Template | Mode | Why |
    | --- | --- | --- |
-   | **Permit baseline** (`organization.permit-baseline`) | enforce | Required. Cedar is default-deny. The LangGraph agent's allow-list (step 3) permits its prompts and tool calls, but the middleware also checks every tool result and model reply, and nothing else permits those — without this, the first tool result is refused with no policy named. |
    | **Structural PII** (`privacy.defaults`) | enforce | The LangGraph notebook's blocked-prompt step leaks a card number and a national ID. PII of that shape is matched by deterministic pattern detectors, which run wherever Shield runs. |
    | **Secrets Detection** (`data-protection.defaults`) | monitor | The LangGraph telemetry step leaks an API key. In monitor mode it is observed and recorded, not blocked, which is what that step demonstrates. |
 
    The gateway notebook is decided by the **AI Gateway** product's policies instead: deploy the
-   same three from Studio → **AI Gateway** → **Policies** (its Secrets Detection template is
+   same two from Studio → **AI Gateway** → **Policies** (its Secrets Detection template is
    `data-protection.secrets`). Policies belong to a product, so the Guardrails set does not
    apply to gateway traffic and this set does not apply to the middleware path.
+
+   You will not find **Baseline Permit** in either catalog, and should not need it. Cedar is
+   default-deny, and an agent's allow-list (step 3) permits only what the agent *does* — its
+   prompts and tool calls; the middleware also checks every tool result and model reply, which
+   nothing else permits. Every project is given a baseline permit when it is created, and Studio
+   hides it on purpose: it is platform plumbing, surfaced as the **Default Behavior** toggle
+   rather than as a policy you manage. A first guarded turn that comes back
+   `Refused by Highflame: None` — refused, naming no policy — means the project was created
+   outside that path and needs the product's `ensure-defaults` run for it.
 
    Deploy from the UI rather than seeding by script: the deployment is then recorded, attributed
    and reversible like any other policy change. Injection & Jailbreak
