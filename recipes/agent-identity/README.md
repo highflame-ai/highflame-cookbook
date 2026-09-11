@@ -73,17 +73,12 @@ whole team.
    `data-protection.secrets`). Policies belong to a product, so the Guardrails set does not
    apply to gateway traffic and this set does not apply to the middleware path.
 
-   You will not find **Baseline Permit** in either catalog, and should not need it. Cedar is
-   default-deny, and an agent's allow-list (step 3) permits only what the agent *does* — its
-   prompts and tool calls; the middleware also checks every tool result and model reply, which
-   nothing else permits. Every project is given a baseline permit when it is created, and Studio
-   hides it on purpose: it is platform plumbing, surfaced as the **Default Behavior** toggle
-   rather than as a policy you manage. A first guarded turn that comes back
-   `Refused by Highflame: None` — refused, naming no policy — means the project was created
-   outside that path and needs the product's `ensure-defaults` run for it. Through the gateway
-   the same state reads `Security policy violation`; Studio seeds the AI Gateway baseline the
-   first time its **Policies** page is opened on a project that has none, so opening it once is
-   the fix there.
+   Leave the **Default Behavior** strip at the top of Guardrails → Policies at *Allow by
+   default*. Tool results and model replies are permitted by that setting rather than by any
+   template, so with it switched to Fail Close the first guarded turn is refused with no policy
+   named. For the gateway notebook, open AI Gateway → Policies in Studio once before the first
+   run; if the setup cell's first model call is refused as `Security policy violation`, that page
+   has not been opened for this project yet.
 
    Deploy from the UI rather than seeding by script: the deployment is then recorded, attributed
    and reversible like any other policy change. Injection & Jailbreak
@@ -97,9 +92,9 @@ whole team.
    locked once enforcement is on, so this ledger is the complete list of what the agent may do;
    `delete_order` is deliberately not on it, and that is what refuses it in the authorization step.
    Send prompts is the grant people forget: without it the first turn is refused. Only this agent
-   is switched to enforcing; the project stays in shadow, so the specialists registered from code
-   are unaffected. Skip this step and the authorization cell reports the other state honestly —
-   the tool ran, and it says so.
+   is switched to Enforcing; the specialists registered from code keep the default Access
+   setting, so they are unaffected. Skip this step and the authorization cell reports the other
+   state honestly — the tool ran, and it says so.
 
 ## Set up a model
 
