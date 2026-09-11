@@ -6,8 +6,9 @@ can't revoke one without revoking all of them."*
 
 This recipe gives an agent four things from Highflame, then scales the same model to a team of
 agents. It ships for two toolkits, [LangGraph](https://langchain-ai.github.io/langgraph/) and
-[AWS Strands](https://strandsagents.com). Pick the one you already use; the four pillars below are
-identical in both.
+[AWS Strands](https://strandsagents.com), and the LangGraph version comes in two forms: the SDK
+middleware inside the agent, or the AI gateway in front of the model. Pick the one you already
+use; the four pillars below are identical in all of them.
 
 1. **Agent identity.** Each agent is registered with Highflame and runs on its own key.
    Every decision Highflame makes is recorded against *that agent*.
@@ -64,9 +65,20 @@ whole team.
 
    | Template | Mode | Why |
    | --- | --- | --- |
-   | **Permit baseline** (`organization.permit-baseline`) | enforce | Required. Cedar is default-deny. The LangGraph agent's allow-list (step 3) permits its prompts and tool calls, but the middleware also checks every tool result and model reply, and nothing else permits those — without this, the first tool result is refused with no policy named. |
-   | **Structural PII** (`privacy.defaults`) | enforce | The LangGraph notebook's blocked-prompt step leaks a card number and a national ID. PII of that shape is matched by deterministic pattern detectors, which run wherever Shield runs. |
+   | **Structural PII** (`privacy.defaults`) | enforce | The LangGraph notebook's blocked-prompt step leaks a card number and a national ID. PII of that shape is matched by deterministic pattern detectors, which run on every deployment. |
    | **Secrets Detection** (`data-protection.defaults`) | monitor | The LangGraph telemetry step leaks an API key. In monitor mode it is observed and recorded, not blocked, which is what that step demonstrates. |
+
+   The gateway notebook is decided by the **AI Gateway** product's policies instead: deploy the
+   same two from Studio → **AI Gateway** → **Policies** (its Secrets Detection template is
+   `data-protection.secrets`). Policies belong to a product, so the Guardrails set does not
+   apply to gateway traffic and this set does not apply to the middleware path.
+
+   Leave the **Default Behavior** strip at the top of Guardrails → Policies at *Allow by
+   default*. Tool results and model replies are permitted by that setting rather than by any
+   template, so with it switched to Fail Close the first guarded turn is refused with no policy
+   named. For the gateway notebook, open AI Gateway → Policies in Studio once before the first
+   run; if the setup cell's first model call is refused as `Security policy violation`, that page
+   has not been opened for this project yet.
 
    Deploy from the UI rather than seeding by script: the deployment is then recorded, attributed
    and reversible like any other policy change. Injection & Jailbreak
@@ -80,33 +92,35 @@ whole team.
    locked once enforcement is on, so this ledger is the complete list of what the agent may do;
    `delete_order` is deliberately not on it, and that is what refuses it in the authorization step.
    Send prompts is the grant people forget: without it the first turn is refused. Only this agent
-   is switched to enforcing; the project stays in shadow, so the specialists registered from code
-   are unaffected. Skip this step and the authorization cell reports the other state honestly —
-   the tool ran, and it says so.
+   is switched to Enforcing; the specialists registered from code keep the default Access
+   setting, so they are unaffected. Skip this step and the authorization cell reports the other
+   state honestly — the tool ran, and it says so.
 
 ## Set up a model
 
-**LangGraph notebook.** Three options, in increasing order of what they prove.
+**LangGraph notebooks.** Two notebooks, two places for the model call.
 
-| Option | What you set | What you get |
+| Notebook | What you set | What you get |
 | --- | --- | --- |
-| Straight to the provider | `OPENAI_API_KEY` | The four pillars. The model call itself is not governed. |
-| Through the gateway | `HIGHFLAME_GATEWAY_BASE_URL` plus `PROVIDER_API_KEY` | The model call is inspected and recorded too, attributed to the calling agent. Whether it can be *refused* depends on the policies attached to the `ai_gateway` product; see [`recipes/ai-gateway/`](../ai-gateway/). |
+| `langgraph_agent_identity`, straight to the provider | `OPENAI_API_KEY` (and `OPENAI_BASE_URL` for any OpenAI-compatible server), `MODEL_ID` | The four pillars, from the SDK middleware inside the agent. The model call itself is not governed. |
+| `langgraph_gateway_agent_identity`, through the gateway | `HIGHFLAME_GATEWAY_BASE_URL`, `PROVIDER_API_KEY`, `GATEWAY_MODEL_ID` | The four pillars, from the gateway in front of the model, with no Highflame code in the agent. The model call is inspected and recorded too, attributed to the calling agent; whether it can be *refused* depends on the policies attached to the AI Gateway product. |
 
 The gateway needs no key of its own. Two credentials travel in two headers and are not
 interchangeable. `X-Highflame-APIKey` says who is calling, and the notebook fills it with the
-**acting agent's** key, so the gateway's record of the model call names the same agent as the
-guardrail decisions. `Authorization: Bearer` is forwarded upstream, so it carries
-`PROVIDER_API_KEY` and never a Highflame credential.
+**acting agent's** key — or `X-Highflame-Token` when the acting agent holds a delegated
+credential — so the gateway's record of the model call names the same agent as the guardrail
+decisions. `Authorization: Bearer` is forwarded upstream, so it carries `PROVIDER_API_KEY` and
+never a Highflame credential.
 
 The gateway is bring-your-own-key for OpenAI-compatible providers: it injects no provider key of
 its own, so `PROVIDER_API_KEY` is required. Omit it and the provider answers
-`401 You didn't provide an API key`.
+`401 You didn't provide an API key`. A model inside your network that takes no key still needs
+a value there; any non-empty string will do.
 
 The gateway speaks the OpenAI API, so the same variables point the notebook at a model served
 inside your own network, which is what makes the recipe work with no internet access.
-`MODEL_ID` picks the model and defaults to `gpt-4o-mini`; through the gateway it must name a
-model the gateway serves, such as `openai/gpt-4o-mini`.
+`GATEWAY_MODEL_ID` names the model as the gateway does, `provider/model`, and defaults to
+`openai/gpt-4o-mini`; a model behind an OpenAI-compatible server is `openai/<its name>`.
 
 **Strands notebooks, on AWS Bedrock.**
 
@@ -119,11 +133,12 @@ model the gateway serves, such as `openai/gpt-4o-mini`.
 - *Optional:* an S3 bucket for `SESSION_BUCKET`, to persist the multi-agent conversation
   under the same id Highflame uses for its decisions.
 
-## Three notebooks
+## Four notebooks
 
 | Notebook | Toolkit | Pattern | What it adds |
 | --- | --- | --- | --- |
 | [`langgraph_agent_identity.ipynb`](langgraph_agent_identity.ipynb) | LangGraph | One agent, then an orchestrator calling specialists as tools | The four pillars on a single agent; delegated credentials per specialist. Runs against a self-hosted deployment and your own model by setting three variables |
+| [`langgraph_gateway_agent_identity.ipynb`](langgraph_gateway_agent_identity.ipynb) | LangGraph + AI gateway | The same two patterns, with every model call routed through the Highflame AI gateway | No Highflame code in the agent. The gateway checks the prompt, each tool call, each tool result and the reply, and the model call itself; each specialist presents its delegated credential to the gateway, so attribution stays exact |
 | [`strands_bedrock_agent_identity.ipynb`](strands_bedrock_agent_identity.ipynb) | Strands | The same two patterns, on Amazon Bedrock | Per-agent IAM roles, so CloudTrail attributes the model calls to the same agent Highflame does |
 | [`strands_swarm_a2a_agent_identity.ipynb`](strands_swarm_a2a_agent_identity.ipynb) | Strands | A [Swarm](https://strandsagents.com/docs/user-guide/concepts/multi-agent/swarm/) of specialists that hand off to each other, plus a remote agent served over [A2A](https://strandsagents.com/docs/user-guide/concepts/multi-agent/agent-to-agent/) | Hand-offs authorized as tool calls; the remote agent verifies the caller's Highflame credential at its front door (`401` without one, `403` without the right permission) and runs its own guardrails as itself |
 
@@ -155,6 +170,12 @@ Run the cells top to bottom. What you'll see:
 | Multi-agent | The orchestrator delegates to two specialists; the delegated credential is verified and its claims shown. Optionally, deactivate a specialist in Studio and watch its still-valid credential be refused |
 | Clean up | The identities created by this run are deactivated; the Studio-registered agent is left alone |
 
+In the gateway notebook a refusal arrives as the model's reply — a completion whose id starts
+with `chatcmpl-blocked-` and whose text names the policy — rather than as a raised
+`BlockedError`, so an unmodified OpenAI client keeps working; a refused tool call is the reply
+that asked for it, so the tool never runs. Its telemetry step reads the decisions back from
+Observatory, one row per check, instead of printing one decision inline.
+
 The A2A server in the second notebook listens on `127.0.0.1:9910`; set `A2A_PORT` in `.env` to change it.
 
 The smoke test covers the Highflame half without AWS:
@@ -167,7 +188,9 @@ python smoke_test.py            # registers, delegates, guards, verifies, cleans
 
 - **Sessions.** Each step uses its own `session_id`. Highflame scores risk across the turns
   of a conversation, so an injection attempt should not share a session with the ordinary
-  requests that follow it.
+  requests that follow it. Through the gateway each request is recorded under a session of its
+  own: the LangGraph `thread_id` is not forwarded, so decisions and transcript are joined by
+  agent and time rather than by one identifier.
 - **`await` in the notebook.** Cells call `await agent.invoke_async(...)` (Strands) or
   `await agent.ainvoke(...)` (LangGraph) because Jupyter already runs an event loop.
 - **LangGraph needs the async entrypoint even outside a notebook.** `HighflameMiddleware`
