@@ -80,7 +80,10 @@ whole team.
    hides it on purpose: it is platform plumbing, surfaced as the **Default Behavior** toggle
    rather than as a policy you manage. A first guarded turn that comes back
    `Refused by Highflame: None` — refused, naming no policy — means the project was created
-   outside that path and needs the product's `ensure-defaults` run for it.
+   outside that path and needs the product's `ensure-defaults` run for it. Through the gateway
+   the same state reads `Security policy violation`; Studio seeds the AI Gateway baseline the
+   first time its **Policies** page is opened on a project that has none, so opening it once is
+   the fix there.
 
    Deploy from the UI rather than seeding by script: the deployment is then recorded, attributed
    and reversible like any other policy change. Injection & Jailbreak
