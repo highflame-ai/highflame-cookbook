@@ -30,6 +30,22 @@ whole team.
 
 ---
 
+## Which deployment?
+
+Any of them. These notebooks talk to a Highflame deployment over its public API, so the hosted
+service, your own dev or production deployment, and a stack running on your laptop are all the
+same to them — you point at one by setting `HIGHFLAME_BASE_URL` and `HIGHFLAME_IDENTITY_URL`,
+and everything below is unchanged.
+
+If you do not have one and would rather not sign up for the hosted service, the whole platform
+runs on a single machine with Docker as the only dependency, with no internet access at runtime:
+[`airgap-eval/`](https://github.com/highflame-ai/highflame-iac/tree/main/airgap-eval) in the
+`highflame-iac` repository brings one up and ships a script that proves it is not phoning home.
+The recipe was written against a hosted tenant and is regularly run against that stack, so both
+work.
+
+---
+
 ## Set it up in Studio
 
 1. **Register an identity in Studio, and copy its key.** [Highflame Studio](https://studio.highflame.ai)
