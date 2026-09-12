@@ -30,6 +30,16 @@ whole team.
 
 ---
 
+## Which deployment?
+
+Any of them. These notebooks talk to a Highflame deployment over its public API, so the hosted
+service, your own dev or production deployment, and a self-hosted stack are all the same to
+them — you point at one by setting `HIGHFLAME_BASE_URL` and `HIGHFLAME_IDENTITY_URL`, and
+everything below is unchanged. The recipe is run against both a hosted tenant and a self-hosted
+deployment.
+
+---
+
 ## Set it up in Studio
 
 1. **Register an identity in Studio, and copy its key.** [Highflame Studio](https://studio.highflame.ai)
