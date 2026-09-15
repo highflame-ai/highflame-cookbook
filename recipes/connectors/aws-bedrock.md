@@ -83,13 +83,7 @@ Recommended role name:
 HighflameDiscovery
 ```
 
-Enter this **name** in Studio — not a full ARN. Studio builds the ARN from the AWS account ID you already entered:
-
-```text
-arn:aws:iam::<TARGET-ACCOUNT-ID>:role/HighflameDiscovery
-```
-
-Replace `<TARGET-ACCOUNT-ID>` with the 12-digit account ID from Step 1.
+Enter this **name** in Studio — not a full ARN. 
 
 ---
 
@@ -132,7 +126,7 @@ The role does not need to exist when the connector is added, but it must exist w
 After Studio creates the connector:
 
 1. Copy the generated **External ID**.
-2. Copy the Highflame discovery role ARN or the complete trust-policy snippet shown by Studio.
+2. Copy the complete trust-policy snippet shown by Studio.
 3. Do not sync yet.
 
 > **Important:** Do not create or supply your own External ID. Studio generates a unique value for the connector.
