@@ -48,35 +48,35 @@ deployment.
 
    An identity's authority ceiling is the **credential policy** attached to it at registration.
    Create the policy first (**Registry** → **Policies** → **Create Policy**), then pick it when
-   you register the identity. Which identity, and which scopes on its policy, depends on the
-   notebook:
+   you register the identity. One identity serves every notebook:
 
-   | Notebook | Register | Scopes on its credential policy |
-   | --- | --- | --- |
-   | `langgraph_agent_identity` | type `agent`, sub type `orchestrator` | `nhi:manage`, `tools:read`, `tools:execute`, `orders:read`, `kb:read` |
-   | the two Strands notebooks | type **Human Proxy** — something acting for a person | `nhi:manage` |
+   | Register | Scopes on its credential policy |
+   | --- | --- |
+   | type `agent`, sub type `orchestrator` | `nhi:manage`, `tools:read`, `tools:execute`, `orders:read`, `kb:read`; add `refunds:read` for the Strands Swarm notebook |
 
-   In the LangGraph notebook this identity **is** the orchestrator: it registers the specialists
-   and delegates to them, so its policy's scopes are the ceiling on everything it can hand out.
-   Omit `orders:read` or `kb:read` and delegation quietly narrows them away, leaving a specialist
-   with less authority than the code asked for and no error to say so. In the Strands notebooks
-   the identity only registers agents and never runs one.
+   This identity **is** the orchestrator: it registers the specialists and delegates to them, so
+   its policy's scopes are the ceiling on everything it can hand out. Omit `orders:read` or
+   `kb:read` and delegation quietly narrows them away, leaving a specialist with less authority
+   than the code asked for and no error to say so. The registrations are attributed to this
+   identity rather than to a shared key, which is the same principle the rest of the recipe
+   demonstrates.
 
-   Either way the registrations are attributed to your identity rather than to a shared key, which
-   is the same principle the rest of the recipe demonstrates, applied to you.
+   **List the scopes; do not leave the field empty.** An empty scope list puts no restriction on
+   the key, but it also leaves the key no scope to hand on: every delegation is then refused with
+   `invalid_scope: requested scopes are not available for delegation`. The Strands notebooks check
+   the key's scopes before they register anything.
 
-   **`nhi:manage` is required in both cases, and it is the one people miss.** It is what lets a
-   key register other identities. Without it the identity is created, the key works and
-   `whoami()` succeeds, and then the first registration fails with
-   `403 token missing nhi:manage scope`.
+   **`nhi:manage` is the one people miss.** It is what lets a key register other identities.
+   Without it the identity is created, the key works and `whoami()` succeeds, and then the first
+   registration fails with `403 token missing nhi:manage scope`.
 2. **Deploy the guardrail policy templates from Studio.** Highflame ships its guardrails as
    templates and enforces nothing until you deploy them. In Studio → **Guardrails** →
    **Policies**, deploy from the template catalog:
 
    | Template | Mode | Why |
    | --- | --- | --- |
-   | **Structural PII** (`privacy.defaults`) | enforce | The LangGraph notebook's blocked-prompt step leaks a card number and a national ID. PII of that shape is matched by deterministic pattern detectors, which run on every deployment. |
-   | **Secrets Detection** (`data-protection.defaults`) | monitor | The LangGraph telemetry step leaks an API key. In monitor mode it is observed and recorded, not blocked, which is what that step demonstrates. |
+   | **Structural PII** (`privacy.defaults`) | enforce | The blocked-prompt step in the LangGraph and Strands notebooks leaks a card number and a national ID. PII of that shape is matched by deterministic pattern detectors, which run on every deployment. |
+   | **Secrets Detection** (`data-protection.defaults`) | monitor | The telemetry step in the LangGraph and Strands notebooks leaks an API key. In monitor mode it is observed and recorded, not blocked, which is what that step demonstrates. |
 
    The gateway notebook is decided by the **AI Gateway** product's policies instead: deploy the
    same two from Studio → **AI Gateway** → **Policies** (its Secrets Detection template is
@@ -91,11 +91,10 @@ deployment.
    has not been opened for this project yet.
 
    Deploy from the UI rather than seeding by script: the deployment is then recorded, attributed
-   and reversible like any other policy change. Injection & Jailbreak
-   Detection is a model, so a deployment without the detector model servers allows the attempt
-   through and a step built on it demonstrates nothing; the Strands notebooks still rely on it,
-   and it is on by default for new hosted accounts.
-3. **Allow-list what the LangGraph agent may do.** Open the identity in Studio's Registry, go to
+   and reversible like any other policy change. None of the notebooks relies on Injection &
+   Jailbreak Detection: it is a model, so a deployment without the detector model servers allows
+   the attempt through and a step built on it demonstrates nothing.
+3. **Allow-list what the agent may do.** Open the identity in Studio's Registry, go to
    its **Policies** page, switch **Access** to **Enforcing**, and add two grants: **Send prompts →
    Allow all**, and **Call tool →** `lookup_order`, `search_kb`, `ask_orders_specialist`,
    `ask_kb_specialist` (leave the MCP server field empty — these are local tools). Every action is
@@ -104,7 +103,8 @@ deployment.
    Send prompts is the grant people forget: without it the first turn is refused. Only this agent
    is switched to Enforcing; the specialists registered from code keep the default Access
    setting, so they are unaffected. Skip this step and the authorization cell reports the other
-   state honestly — the tool ran, and it says so.
+   state honestly — the tool ran, and it says so. The Strands Swarm notebook does not use the
+   allow-list: its Studio identity only delegates, and every agent that acts is registered from code.
 
 ## Set up a model
 
@@ -149,8 +149,8 @@ inside your own network, which is what makes the recipe work with no internet ac
 | --- | --- | --- | --- |
 | [`langgraph_agent_identity.ipynb`](langgraph_agent_identity.ipynb) | LangGraph | One agent, then an orchestrator calling specialists as tools | The four pillars on a single agent; delegated credentials per specialist. Runs against a self-hosted deployment and your own model by setting three variables |
 | [`langgraph_gateway_agent_identity.ipynb`](langgraph_gateway_agent_identity.ipynb) | LangGraph + AI gateway | The same two patterns, with every model call routed through the Highflame AI gateway | No Highflame code in the agent. The gateway checks the prompt, each tool call, each tool result and the reply, and the model call itself; each specialist presents its delegated credential to the gateway, so attribution stays exact |
-| [`strands_bedrock_agent_identity.ipynb`](strands_bedrock_agent_identity.ipynb) | Strands | The same two patterns, on Amazon Bedrock | Per-agent IAM roles, so CloudTrail attributes the model calls to the same agent Highflame does |
-| [`strands_swarm_a2a_agent_identity.ipynb`](strands_swarm_a2a_agent_identity.ipynb) | Strands | A [Swarm](https://strandsagents.com/docs/user-guide/concepts/multi-agent/swarm/) of specialists that hand off to each other, plus a remote agent served over [A2A](https://strandsagents.com/docs/user-guide/concepts/multi-agent/agent-to-agent/) | Hand-offs authorized as tool calls; the remote agent verifies the caller's Highflame credential at its front door (`401` without one, `403` without the right permission) and runs its own guardrails as itself |
+| [`strands_bedrock_agent_identity.ipynb`](strands_bedrock_agent_identity.ipynb) | Strands | `langgraph_agent_identity`, section for section, on Amazon Bedrock with Strands hooks | The same Studio identity and setup. Per-agent IAM roles, so CloudTrail attributes the model calls to the same agent Highflame does |
+| [`strands_swarm_a2a_agent_identity.ipynb`](strands_swarm_a2a_agent_identity.ipynb) | Strands | A [Swarm](https://strandsagents.com/docs/user-guide/concepts/multi-agent/swarm/) of specialists that hand off to each other, plus a remote agent served over [A2A](https://strandsagents.com/docs/user-guide/concepts/multi-agent/agent-to-agent/) | The Studio identity as team lead, with `refunds:read` added. Hand-offs pass the same hooks as tool calls; the remote agent verifies the caller's Highflame credential at its front door (`401` without one, `403` without the right scope) and runs its own guardrails as itself |
 
 Read the row that matches your toolkit. The two Strands notebooks are in order: the second assumes
 the first.
@@ -160,22 +160,22 @@ the first.
 ```bash
 cd recipes/agent-identity
 cp .env.example .env            # a model credential: OPENAI_API_KEY, or the gateway variables;
-                                # AWS_PROFILE for Strands. HIGHFLAME_API_KEY too for the Strands
-                                # notebooks -- the LangGraph one prompts for it when unset, so the
-                                # key stays out of the notebook's saved output.
+                                # AWS_PROFILE for Strands. Every notebook prompts for
+                                # HIGHFLAME_API_KEY when unset, so the key stays out of its saved
+                                # output; set it here to skip the prompt.
 pip install -r requirements.txt
-jupyter lab                     # open any of the three notebooks
+jupyter lab                     # open any of the four notebooks
 ```
 
 Run the cells top to bottom. What you'll see:
 
 | Step | What happens |
 | --- | --- |
-| Connect as the agent | LangGraph: the Studio-registered agent, nothing registered from code. Strands: an identity and key are created for it. Either way `whoami()` shows the agent acting as itself |
+| Connect as the agent | The Studio-registered agent, nothing registered from code; `whoami()` shows the agent acting as itself. The Strands notebooks first check the AWS credentials and the key's scopes |
 | Ask about an order | The agent answers through its tools; every check is allowed |
-| Ask for a scope outside its credential policy (LangGraph) | Refused at issuance with `invalid_scope`, before any policy or detector runs; a granted scope is issued exactly, a mix is narrowed and the token's `scopes` claim says which |
+| Ask for a scope outside its credential policy | Refused at issuance with `invalid_scope`, before any policy or detector runs; a granted scope is issued exactly, a mix is narrowed and the token's `scopes` claim says which |
 | Ask it to delete an order | Refused by the allow-list before the tool body runs: `Authorization Grants — call_tool`. Without the allow-list the cell says the tool ran, and whether it actually did |
-| Leak a card number (LangGraph) / try a prompt injection (Strands) | Refused before the model is called, naming the policy: `Refused by Highflame: Enterprise Policies Triggered: privacy.defaults` |
+| Leak a card number | Refused before the model is called, naming the policy: `Refused by Highflame: Enterprise Policies Triggered: privacy.defaults` |
 | Telemetry | One line per span; one decision's request ID, the policies that decided it, the signals that fired, and its attribution |
 | Multi-agent | The orchestrator delegates to two specialists; the delegated credential is verified and its claims shown. Optionally, deactivate a specialist in Studio and watch its still-valid credential be refused |
 | Clean up | The identities created by this run are deactivated; the Studio-registered agent is left alone |
@@ -203,6 +203,9 @@ python smoke_test.py            # registers, delegates, guards, verifies, cleans
   agent and time rather than by one identifier.
 - **`await` in the notebook.** Cells call `await agent.invoke_async(...)` (Strands) or
   `await agent.ainvoke(...)` (LangGraph) because Jupyter already runs an event loop.
+- **One conversation per Strands agent.** A Strands `Agent` keeps its conversation for as long as
+  the object lives, so the Strands notebooks build a fresh agent (or swarm) for each conversation,
+  the way a LangGraph `thread_id` separates them.
 - **LangGraph needs the async entrypoint even outside a notebook.** `HighflameMiddleware`
   implements its hooks as coroutines, and `agent.invoke()` raises
   `InvalidUpdateError: Expected dict, got <coroutine object>` rather than guarding. Call
@@ -211,10 +214,11 @@ python smoke_test.py            # registers, delegates, guards, verifies, cleans
   evaluated twice. Pass `optimize=True` to the middleware or hooks to run only the detectors your
   active policies reference. The notebooks leave it off so every detector shows up in the
   telemetry section.
-- **Delegation scopes.** The orchestrator requests exactly the specialist's own scopes. Two
-  rules decide what it gets: a requested scope the specialist may not hold refuses the whole
-  exchange with `invalid_scope`, and what survives is narrowed to what the orchestrator itself
-  holds — silently. Requesting nothing is refused.
+- **Delegation scopes.** The orchestrator requests exactly the specialist's own scopes. What it
+  gets is the requested scopes that both the orchestrator holds and the specialist may hold;
+  anything else is dropped silently. Only when nothing survives is the exchange refused, with
+  `invalid_scope: requested scopes are not available for delegation`. The SDK refuses an empty
+  request before it is sent.
 - **Bedrock Guardrails** can run alongside Highflame. They filter model input and output;
   Highflame decides per agent identity and also covers tool calls and results. The notebook
   leaves them off so every block you see comes from one place.
