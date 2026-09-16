@@ -103,8 +103,9 @@ deployment.
    Send prompts is the grant people forget: without it the first turn is refused. Only this agent
    is switched to Enforcing; the specialists registered from code keep the default Access
    setting, so they are unaffected. Skip this step and the authorization cell reports the other
-   state honestly — the tool ran, and it says so. The Strands Swarm notebook does not use the
-   allow-list: its Studio identity only delegates, and every agent that acts is registered from code.
+   state honestly — the tool ran, and it says so. In the Strands Swarm notebook the Studio identity
+   only delegates and needs no grants; the notebook lists the optional grants for each specialist it
+   registers, including `handoff_to_agent`.
 
 ## Set up a model
 
