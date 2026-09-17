@@ -27,6 +27,12 @@ jobs:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
+          # NOTE: Actions runs this under `bash -e`, and `set -uo pipefail` does
+          # NOT clear -e. So every command that may legitimately fail has to be
+          # guarded explicitly, or it aborts the whole step and every recipe
+          # sorting after it is silently never run. That is not hypothetical:
+          # one recipe pinning a nonexistent version cut a run from 13 recipes
+          # to 10, and the build reported only the install error.
           set -uo pipefail
           # Recipes nest at varying depths (e.g. recipes/aperture/01-block-secrets/),
           # so discover smoke tests at any depth rather than a single level.
@@ -35,7 +41,14 @@ jobs:
             d="$(dirname "$f")/"
             echo "::group::smoke ${d}"
             if [ -f "${d}requirements.txt" ]; then
-              pip install -q -r "${d}requirements.txt"
+              # Guarded: a broken requirements.txt is this recipe's failure, not
+              # a reason to stop testing the others.
+              if ! pip install -q -r "${d}requirements.txt"; then
+                echo "::endgroup::"
+                echo "::error::dependency install FAILED for ${d} — see the group above"
+                failed=1
+                continue
+              fi
             fi
             rc=0
             python "$f" || rc=$?
