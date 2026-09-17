@@ -1,4 +1,8 @@
-highflame>=0.4          # Shield SDK — guard calls, key→JWT exchange
+# Shield SDK — guard calls, key→JWT exchange. Floor is the version this recipe
+# was verified against; capped below 0.4 because the SDK is pre-1.0 and minor
+# bumps are not contract-stable (same convention as recipes/agent-identity and
+# recipes/ai-gateway).
+highflame>=0.3.25,<0.4
 httpx>=0.27             # Observatory session timeline (section 7)
 python-dotenv>=1.0      # reads .env
 marimo>=0.9.0           # walkthrough.py notebook (not needed for the scripts)
