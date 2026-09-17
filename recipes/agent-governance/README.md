@@ -30,7 +30,8 @@ the runnable proof below.
 1. **Connect your identity provider.** Studio → Registry → Connections → add the provider
    you run (**Google Workspace**, **Okta**, **Microsoft Entra**, **Google Agent Engine**,
    or **Copilot Studio**). Provider-side setup (app registration, IAM, scopes) is
-   documented under [`recipes/connectors/`](../connectors/).
+   documented under [`recipes/connectors/`](../connectors/) — Copilot Studio is
+   [`copilot-studio.md`](../connectors/copilot-studio.md).
    <!-- screenshot: Studio → Registry → Connections → Add -->
 2. **Discover.** The connector surfaces the agents already operating in your org —
    including ones nobody registered. Each shows up in the registry as *discovered*, waiting
