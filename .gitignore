@@ -12,3 +12,9 @@ report.json
 # Jupyter writes checkpoint copies of every notebook. They are not ignored by
 # default, and a key pasted into a cell lands in one, so keep them out of git.
 .ipynb_checkpoints/
+
+# Marimo's per-notebook session cache (cell outputs and run state). Same
+# hazard as the Jupyter checkpoints above — it records what cells printed,
+# which for these recipes includes identity records — and it is regenerated
+# on every run, so it has no business in a commit.
+__marimo__/
