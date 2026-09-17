@@ -1,11 +1,19 @@
 # Shield SDK — guard calls, key→JWT exchange.
 #
-# The floor is conservative, not a hard requirement: everything this recipe
-# uses (explain=True → projected_context, determining_policies[].rule_id and
-# .annotations, ToolContext, token_url) has been present since v0.3.17. 0.3.25
-# is simply the version the recipe was verified against, and the latest
-# release. Lower it if you have a conflicting constraint — but re-run
-# smoke_test.py, because the guard response shape is what this recipe reads.
+# 0.3.25 is the latest release and the only version this recipe has actually
+# been run against. The surfaces it depends on — explain=True →
+# projected_context, determining_policies[].rule_id and .annotations,
+# ToolContext, token_url — also appear in the SDK source as far back as
+# v0.3.17, so the floor is probably loosenable. Treat that as a lead, not a
+# guarantee: it comes from reading tagged source, and the published wheel is
+# not identical to the repo (0.3.25 has no tag in highflame-sdk, and its
+# evaluate() differs from HEAD). If you lower the floor, re-run smoke_test.py
+# — the guard *response* shape is what this recipe reads, and nothing here
+# pins it.
+#
+# One thing 0.3.25 gives you: evaluate() raises InvalidRequestError on an
+# unknown keyword rather than dropping it, so a typo'd `explain` fails loudly
+# instead of silently returning an empty projected_context.
 #
 # Capped below 0.4 because the SDK is pre-1.0 and minor bumps are not
 # contract-stable (same convention as recipes/agent-identity, recipes/ai-gateway).
