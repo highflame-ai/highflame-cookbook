@@ -1,0 +1,6 @@
+highflame>=0.4          # Shield SDK — guard calls, key→JWT exchange
+httpx>=0.27             # Observatory session timeline (section 7)
+python-dotenv>=1.0      # reads .env
+marimo>=0.9.0           # walkthrough.py notebook (not needed for the scripts)
+nbformat>=5.10          # only for `marimo export ipynb`
+openai>=1.40            # only for `guarded_agent.py --live`
