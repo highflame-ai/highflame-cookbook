@@ -220,6 +220,31 @@ same config), the `*_mcp_call` modes inspect that traffic with no extra code.
 > response-text-only by removing it — but keep it if any agents execute tools locally,
 > since local tools never reach the `*_mcp_call` hooks.
 
+### Who the traffic is attributed to
+
+Your proxy holds one `HIGHFLAME_API_KEY`, so Shield authenticates every call as the gateway. Without
+help, Studio shows a single caller for every developer and agent behind it.
+
+LiteLLM already knows who called. `HighflameGuardrail` reads that out of `request_data["metadata"]`
+and puts the caller into the `session_id` of every Shield call — which Shield signs into its
+receipt, and which gives each caller their own server-side session (so multi-turn risk accumulates
+per caller rather than pooling across your whole gateway).
+
+| Source | Needs the LiteLLM DB |
+| --- | --- |
+| `x-litellm-end-user-id` / `x-litellm-customer-id` header — always checked, no config | no |
+| the OpenAI-standard `user` body field | no |
+| the virtual key's owner/team/org (`user_api_key_user_id`, `user_api_key_team_id`, …) | yes |
+
+A different header? Map it with `general_settings.user_header_mappings`. Nothing supplied? The
+caller becomes `unattributed`. Set `HIGHFLAME_LOG_CALLER=1` to log what each request resolved to.
+
+> **⚠️ This is attribution, not authentication.** A header is set by the client, so anyone who can
+> reach the proxy directly can put someone else's name in it. Trust it only behind an ingress that
+> sets the header and strips the client's copy. For an identity a caller *cannot* claim, give each
+> caller its own Highflame credential (`highflame.agents.register` → a per-agent key) — then Shield's
+> `agent_identity` names the caller itself, not the gateway.
+
 …or, for the pure SDK (no proxy), call the same guard inline around your `completion()` —
 the file includes a `guarded_completion()` helper that does exactly that.
 
