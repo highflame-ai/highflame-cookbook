@@ -1,7 +1,14 @@
-# Shield SDK — guard calls, key→JWT exchange. Floor is the version this recipe
-# was verified against; capped below 0.4 because the SDK is pre-1.0 and minor
-# bumps are not contract-stable (same convention as recipes/agent-identity and
-# recipes/ai-gateway).
+# Shield SDK — guard calls, key→JWT exchange.
+#
+# The floor is conservative, not a hard requirement: everything this recipe
+# uses (explain=True → projected_context, determining_policies[].rule_id and
+# .annotations, ToolContext, token_url) has been present since v0.3.17. 0.3.25
+# is simply the version the recipe was verified against, and the latest
+# release. Lower it if you have a conflicting constraint — but re-run
+# smoke_test.py, because the guard response shape is what this recipe reads.
+#
+# Capped below 0.4 because the SDK is pre-1.0 and minor bumps are not
+# contract-stable (same convention as recipes/agent-identity, recipes/ai-gateway).
 highflame>=0.3.25,<0.4
 httpx>=0.27             # Observatory session timeline (section 7)
 python-dotenv>=1.0      # reads .env
