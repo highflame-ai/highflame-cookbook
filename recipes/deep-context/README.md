@@ -87,14 +87,14 @@ and on the tool call:
 | `session_threat_turns` | 0 | **2** |
 | `session_cumulative_risk_score` | 70 | **248** |
 | decision | **allow** | **deny** |
-| rules fired | — | `block-tool-after-injection-in-session`, `block-sensitive-tool-on-session-risk` |
+| rules fired | — | `block-tool-after-injection-in-session`, `block-sensitive-tool-on-session-risk`, `block-tool-on-repeated-threat-turns` |
 
-Policy 02 Section 2 (`session_cumulative_risk_score >= 151`) **could not fire
-before [highflame-shield#549](https://github.com/highflame-ai/highflame-shield/pull/549)** —
-the same conversation accumulated 111 then, and 248 now. Section 3
-(`session_threat_turns >= 2`) is new in this recipe and is not in the dev1
-project yet; the counter it reads now reports **2** where it reported 0, so it
-will fire once pasted in. See the drift notes below.
+All three of policy 02's rules fire, and **two of them could not before
+[highflame-shield#549](https://github.com/highflame-ai/highflame-shield/pull/549)**:
+the same conversation accumulated 111 cumulative risk then and 248 now, and
+`session_threat_turns` read 0 where it now reads 2. Those two rules would have
+validated cleanly, deployed, and silently never fired — which is the failure
+mode this recipe exists to make visible. See the drift notes below.
 
 Shield returns the per-condition evaluation, so the walkthrough shows *why*
 rather than asserting it:
