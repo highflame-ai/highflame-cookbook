@@ -1,5 +1,7 @@
-highflame[strands,langgraph]>=0.3.24,<0.4   # <0.4: pre-1.0 SDK, and 0.3.24 is the floor
-                                           # whose [langgraph] extra declares langchain
+highflame[strands,langgraph]>=0.3.25,<0.4   # <0.4: pre-1.0 SDK. 0.3.25 is the floor:
+                                           # it adds tokens.verify_active(), which these
+                                           # notebooks use at a trust boundary (sdk#162).
+                                           # 0.3.24's [langgraph] extra declares langchain.
 # Strands notebooks
 strands-agents[a2a]>=1.54      # [a2a] adds the A2A server/client used by the swarm notebook
 boto3>=1.43                    # Amazon Bedrock
