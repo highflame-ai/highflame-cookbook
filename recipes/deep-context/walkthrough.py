@@ -152,9 +152,10 @@ def _(mo):
         Six turns. Read each one on its own and ask whether you would block it.
         Then read them in order.
 
-        These are not turns invented to make a demo land — they are the vector
-        Highflame's own model team uses to test multi-turn state
-        (`highflame-models/tests/services/multiturn_parity.py`).
+        This is a textbook crescendo: a benign frame, a plausible follow-up,
+        a hypothetical, a reframe, and finally a payoff request phrased as
+        a summary of what was "already explained." No turn introduces the
+        attack. The sequence is the attack.
         """
     )
     return

@@ -33,9 +33,9 @@ TURNS = [
 ]
 
 # The final turn is innocuous read alone and decisive read in sequence. These
-# bounds are deliberately loose around the values measured on dev1
-# (threaded 97, stateless 22) so ordinary model drift does not fail CI, while
-# a genuine regression — state not threading at all — still does.
+# bounds sit deliberately wide of the typical scores (threaded ~97, stateless
+# ~22) so ordinary model variation does not fail CI, while a genuine
+# regression — state not threading at all — still does.
 MIN_THREADED_SCORE = 60
 MAX_STATELESS_SCORE = 45
 

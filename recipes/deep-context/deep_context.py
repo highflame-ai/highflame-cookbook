@@ -70,7 +70,7 @@ def load_config() -> Config:
         ).rstrip("/"),
         observatory_url=os.getenv("HIGHFLAME_OBSERVATORY_URL", "").rstrip("/"),
         studio_url=os.getenv("HIGHFLAME_STUDIO_URL", "https://studio.highflame.ai").rstrip("/"),
-        agent_label=os.getenv("HIGHFLAME_AGENT_LABEL", "capvista-research-agent"),
+        agent_label=os.getenv("HIGHFLAME_AGENT_LABEL", "research-agent"),
         operator=os.getenv("HIGHFLAME_OPERATOR", "unset@example.com"),
     )
 
