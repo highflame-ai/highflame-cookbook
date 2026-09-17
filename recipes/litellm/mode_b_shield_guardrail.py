@@ -32,8 +32,8 @@ Shield decisions map as:
   * modify   → Shield's PII-redacted text is written back (LiteLLM logs a "mask")
   * deny / step_up / defer → the request is rejected (HTTP 400 from the proxy)
 
-Every guard call is attributed to the caller LiteLLM identified, not to the
-gateway's own key — see "Who is behind the request" below.
+Every guard call is attributed to the caller LiteLLM identified, and carries
+LiteLLM's own session id — see "Who is behind the request" below.
 
 Two ways to use it:
 
@@ -153,8 +153,9 @@ def _tool_call_name_args(tool_call: Any) -> tuple[str, dict]:
 # developer to that single identity.
 #
 # LiteLLM already knows the caller. It puts the answer in request_data["metadata"],
-# and the fields below are read from there. The caller lands in the guard call's
-# session_id, which Shield signs into its receipt.
+# and the fields below are read from there. The caller then travels to Shield as
+# guard metadata, which Observatory shows as the event's User. The guard call's
+# session_id stays LiteLLM's own, so the event lines up with your LiteLLM records.
 #
 # SECURITY: this is attribution, not authentication. `x-litellm-end-user-id` is a
 # request header, so a caller who reaches the proxy directly can set it to any
@@ -175,6 +176,9 @@ _IDENTITY_FIELDS = (
 
 # LiteLLM uses this when no virtual-key user is resolved. It names nobody.
 _ANONYMOUS = "default_user_id"
+
+# What a request with no identifiable caller resolves to.
+_UNATTRIBUTED = "unattributed"
 
 
 def caller_identity(request_data: dict) -> dict:
@@ -200,7 +204,7 @@ def principal(identity: dict) -> str:
         or identity.get("litellm_user_email")
         or identity.get("litellm_user_id")
         or identity.get("litellm_key_alias")
-        or "unattributed"
+        or _UNATTRIBUTED
     )
 
 
@@ -213,24 +217,36 @@ _LOG_CALLER = os.environ.get("HIGHFLAME_LOG_CALLER", "").lower() in {"1", "true"
 def guard_context(request_data: dict) -> tuple[str, dict]:
     """Return the (session_id, metadata) to attach to every guard call.
 
-    Shield signs session_id into its receipt, so the caller rides in it. Send
+    The session id is LiteLLM's own, unaltered, so a Highflame event lines up with
+    the same conversation in your LiteLLM logs and spend records. Send
     `litellm_session_id` on your requests to keep one conversation in one Shield
-    session; without it each request becomes its own session and Shield cannot
+    session. Without it each request becomes its own session, and Shield cannot
     track the conversation across turns.
+
+    The caller travels in the metadata instead, not in the session id.
     """
     identity = caller_identity(request_data)
     metadata = request_data.get("metadata") or {}
-    conversation = (
+    session_id = (
         request_data.get("litellm_session_id")
         or metadata.get("session_id")
         or request_data.get("litellm_call_id")
         or ""
     )
     who = principal(identity)
-    session_id = f"{who}:{conversation}" if conversation else who
+    guard_metadata = {"caller": identity, "source": "litellm-gateway"}
+    if who != _UNATTRIBUTED:
+        # Shield fills the event's user label from the JWT first, and falls back to
+        # metadata["user_name"] / metadata["user_email"]. A gateway API key carries
+        # no user claims, so this is what Observatory shows as the User.
+        #
+        # It labels the event. It does not change the user the event is INDEXED by,
+        # which stays the gateway's own principal. So Explore shows the caller, and a
+        # filter by user still groups the whole gateway together.
+        guard_metadata["user_name"] = who
     if _LOG_CALLER:
         print(f"[highflame] caller={who} session_id={session_id} identity={identity}", flush=True)
-    return session_id, {"caller": identity, "source": "litellm-gateway"}
+    return session_id, guard_metadata
 
 
 # --- LiteLLM proxy guardrail (unified interface) ------------------------------
@@ -249,7 +265,7 @@ try:
 
         async def apply_guardrail(self, inputs, request_data, input_type, logging_obj=None):
             content_type = "prompt" if input_type == "request" else "response"
-            # Attribute every Shield call below to the caller, not to the gateway.
+            # Carry LiteLLM's session id and the caller into every Shield call below.
             session_id, guard_metadata = guard_context(request_data)
 
             # 1) MCP pre-call: LiteLLM converts the MCP call into a synthetic
