@@ -18,7 +18,7 @@
 //   session_cumulative_risk_score  Long  Uncapped SUM of per-turn risk. The
 //                                        "death by a thousand cuts" counter.
 //   session_threat_turns           Long  Count of turns that tripped a
-//                                        detector. See the caveat below.
+//                                        detector — repetition, not severity.
 //
 // The two shapes answer different questions:
 //   - max        = "did this session EVER cross a line?"  (one bad turn, remembered)
@@ -36,29 +36,34 @@
 //
 //   session_max_jailbreak_score      97     ← Section 1 fires on this
 //   session_max_injection_score      49
-//   session_cumulative_risk_score   111     ← below the 151 threshold
-//   session_threat_turns              0     ← see the caveat
+//   session_cumulative_risk_score   248     ← Section 2 fires on this
+//   session_threat_turns              2     ← Section 3 fires on this
 //
-// Two consequences, stated plainly so you are not surprised:
+// All three sections fire on a six-turn conversation. That was NOT true before
+// highflame-shield#549, and the difference is worth understanding, because it
+// is the same lesson the whole recipe teaches.
 //
-// 1. Section 2's threshold of 151 does NOT fire on a 6-turn conversation. It
-//    is kept at 151 to match the platform's existing multi-agent templates
-//    (a2a_security, multi_agent) rather than tuned down to make a demo land.
-//    Reaching it takes roughly 8-9 turns at this escalation rate. Lower it for
-//    your own traffic only after you have measured your own sessions.
+// Until that shipped, jailbreak turns were scored but never recorded as
+// detections, so this conversation ended with session_threat_turns == 0 while
+// session_max_jailbreak_score sat at 97 — a rule on the counter validated
+// cleanly and never fired. The same PR also found that cumulative risk was
+// computed from the single-turn classifier alone, ignoring the deepcontext
+// detector: this conversation accumulated 111, because the turns scoring 76
+// and 97 on deepcontext read 0 and 23 on the classifier. With both fixed it
+// accumulates 248.
 //
-// 2. session_threat_turns counts only PII, secrets, INJECTION, and command
-//    injection — jailbreak does not increment it (highflame-shield
-//    internal/cedar/projector.go). A pure jailbreak escalation therefore ends
-//    the session with session_threat_turns == 0 while
-//    session_max_jailbreak_score sits at 97. A rule written on threat_turns
-//    alone would validate cleanly and never fire on this attack, which is why
-//    there is no such rule here.
+// So the thresholds below are unchanged from the platform's existing
+// multi-agent templates (a2a_security, multi_agent) — they were never the
+// problem. The signal feeding them was.
 //
 // Context keys consumed:
 //   - session_max_injection_score, session_max_jailbreak_score: Long
 //   - session_cumulative_risk_score: Long
+//   - session_threat_turns: Long
 //   - tool_is_sensitive: Bool
+//
+// Requires highflame-shield#549 for Section 3 (and for Section 2 to reach its
+// threshold on a conversation this short).
 //
 // Requires: a stable session_id on every request, prompts AND tool calls. The
 // tool call must ride the same session as the conversation or it reads 0.
@@ -101,8 +106,8 @@ when {
 // Narrower than Section 1 (sensitive tools only) but triggered by a different
 // shape of attack: one where no single turn ever scores high enough to set a
 // max, yet the session as a whole has been steadily pushing. Threshold matches
-// the platform's a2a_security profile. See the measurement note above — this
-// needs a longer conversation than the walkthrough's six turns.
+// the platform's a2a_security profile, unchanged — the walkthrough reaches 248
+// against it, comfortably over.
 
 @id("agent-security.block-sensitive-tool-on-session-risk")
 @name("Block sensitive tools once the session has accumulated risk")
@@ -119,4 +124,38 @@ when {
     context has session_cumulative_risk_score &&
     context.session_cumulative_risk_score >= 151 &&
     context has tool_is_sensitive && context.tool_is_sensitive == true
+};
+
+// ---------------------------------------------------------------------------
+// Section 3: Sustained probing, independent of any single score
+// ---------------------------------------------------------------------------
+//
+// Neither a high-water mark nor a sum — just "how many turns tripped a
+// detector". It catches the session that never spikes and never accumulates
+// much, but keeps quietly testing the edges.
+//
+// The bar is 2 because that is the smallest number that distinguishes repeated
+// from one-off, and a single detector hit is exactly the shape of a false
+// positive. It is NOT tuned to this demo: the walkthrough's six turns produce
+// 2 (turns 5 and 6, scoring 76 and 97), so the rule fires with nothing to
+// spare. Long-running agent sessions accumulate turns faster and warrant a
+// higher bar — the platform's multi_agent profile uses 6. Measure your own
+// sessions in monitor mode before choosing.
+//
+// Requires highflame-shield#549: before it, jailbreak turns never incremented
+// this counter, so on a pure-jailbreak escalation this rule was inert.
+
+@id("agent-security.block-tool-on-repeated-threat-turns")
+@name("Block tool use in a session with repeated threat turns")
+@description("Blocks call_tool when session_threat_turns >= 2 — more than one turn in this session tripped a detector.")
+@severity("high")
+@tags("category:agent-security,threat:escalation,detection:aggregate,surface:call-tool,scope:multi-turn,owasp:asi04")
+@reject_message("Tool execution blocked: more than one turn in this session tripped a detector. This is sustained probing, not a one-off false positive.")
+forbid (
+    principal,
+    action == Guardrails::Action::"call_tool",
+    resource
+)
+when {
+    context has session_threat_turns && context.session_threat_turns >= 2
 };

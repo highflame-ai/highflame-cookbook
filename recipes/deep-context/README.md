@@ -84,8 +84,17 @@ and on the tool call:
 
 | | clean session | after the conversation |
 | --- | --- | --- |
+| `session_threat_turns` | 0 | **2** |
+| `session_cumulative_risk_score` | 70 | **248** |
 | decision | **allow** | **deny** |
-| rule | — | `agent-security.block-tool-after-injection-in-session` |
+| rules fired | — | `block-tool-after-injection-in-session`, `block-sensitive-tool-on-session-risk` |
+
+Policy 02 Section 2 (`session_cumulative_risk_score >= 151`) **could not fire
+before [highflame-shield#549](https://github.com/highflame-ai/highflame-shield/pull/549)** —
+the same conversation accumulated 111 then, and 248 now. Section 3
+(`session_threat_turns >= 2`) is new in this recipe and is not in the dev1
+project yet; the counter it reads now reports **2** where it reported 0, so it
+will fire once pasted in. See the drift notes below.
 
 Shield returns the per-condition evaluation, so the walkthrough shows *why*
 rather than asserting it:
@@ -155,7 +164,7 @@ cedar validate --schema .../guardrails/schema.cedarschema \
 | --- | --- | --- |
 | [`00_baseline.cedar`](policies/00_baseline.cedar) | 1 | Default-allow floor. **Skip if the project already has one** — most do. |
 | [`01_trajectory_escalation.cedar`](policies/01_trajectory_escalation.cedar) | 4 | Blocks a conversation whose *trajectory* is an attack. The headline. |
-| [`02_session_accumulation.cedar`](policies/02_session_accumulation.cedar) | 2 | Blocks the tool call the conversation was working toward. |
+| [`02_session_accumulation.cedar`](policies/02_session_accumulation.cedar) | 3 | Blocks the tool call the conversation was working toward. |
 | [`03_dual_attribution.cedar`](policies/03_dual_attribution.cedar) | 3 | Requires an accountable principal behind privileged agent actions. |
 
 The headline rule:
@@ -248,16 +257,29 @@ Found while building this, both reproducible, both affecting what you can write:
    want ("a *named human* is attached"). Fixing the schema to declare
    `principal` as a record unlocks the stronger rule.
 
-2. **`session_threat_turns` never counts jailbreaks.** It increments only on
-   PII, secrets, injection, and command injection. A pure jailbreak escalation
-   ends with `session_threat_turns == 0` while `session_max_jailbreak_score`
-   sits at 97 — so a rule written on `threat_turns` validates cleanly and then
-   never fires on this attack. There is deliberately no such rule here.
+2. **`session_threat_turns` never counted jailbreaks — ✅ fixed in
+   [highflame-shield#549](https://github.com/highflame-ai/highflame-shield/pull/549).**
+   It incremented only on PII, secrets, injection and command injection, so a
+   pure jailbreak escalation ended with `session_threat_turns == 0` while
+   `session_max_jailbreak_score` sat at 97 — a rule on the counter validated
+   cleanly and then never fired.
 
-   Same class of trap: the guardrails schema comments list `identity_type` as
-   `"human" | "agent" | "service"`, while the projector emits
-   `"agent" | "application" | "mcp_server" | "service"`. A rule testing
-   `identity_type == "human"` also validates and never fires.
+   Auditing that fix turned up two more of the same shape, both also fixed
+   there: tool-poisoning and rug-pull turns were recorded and never counted
+   either, and **`session_cumulative_risk_score` was computed from the
+   single-turn classifier alone**, ignoring the deepcontext detector entirely.
+   That last one mattered most — the walkthrough's conversation accumulated
+   **111** when the turns scoring 76 and 97 on deepcontext read 0 and 23 on the
+   classifier. It now accumulates **248**. The counter built to catch
+   death-by-a-thousand-cuts had been blind to the detector built for it.
+
+   If you are on a Shield older than #549, policy 02's Sections 2 and 3 will
+   not fire on a conversation this short.
+
+   Still open, same class of trap: the guardrails schema comments list
+   `identity_type` as `"human" | "agent" | "service"`, while the projector
+   emits `"agent" | "application" | "mcp_server" | "service"`. A rule testing
+   `identity_type == "human"` validates and never fires.
 
 ---
 
