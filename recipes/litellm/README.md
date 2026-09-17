@@ -128,6 +128,12 @@ exception — the demo catches it and shows the policy reason.
 
 ## Mode B — Shield as a LiteLLM guardrail hook
 
+> **Deploying this into a LiteLLM proxy you already run?** Work through
+> [`mode_b_deploy_and_test.ipynb`](mode_b_deploy_and_test.ipynb). It builds the gateway image,
+> wires the config, proves the guardrail is actually consulted, and runs twelve attack scenarios
+> (injection, multi-turn jailbreak, poisoned tool definition, leaked tool result, streaming) against
+> the running proxy.
+
 When you want LiteLLM to keep making every provider call itself and only ask Highflame
 *"is this allowed?"*, register a guardrail. Shield's guard endpoint takes a **JWT**, not a
 raw API key — so the hook uses the Highflame SDK, which mints and refreshes the JWT from
