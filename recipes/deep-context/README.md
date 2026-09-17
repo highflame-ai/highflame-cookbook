@@ -115,12 +115,9 @@ marimo run walkthrough.py   # the demo
 | --- | --- |
 | [`walkthrough.py`](walkthrough.py) | **[Marimo](https://marimo.io) notebook** — the whole story with live output. Best for demoing. |
 | [`walkthrough.ipynb`](walkthrough.ipynb) | **The same notebook as Jupyter**, with outputs from a real dev1 run committed — readable on GitHub without running anything. |
-| [`policies/`](policies/) | The four Cedar policies. Validated against the published guardrails schema. |
-| [`create_policies.py`](create_policies.py) | Creates them in a project from those same files. `--dry-run` to preview. |
-| [`guarded_agent.py`](guarded_agent.py) | ~120 lines: an agent that threads one `session_id` through every guard call. **This is the artifact to copy.** |
-| [`deep_context.py`](deep_context.py) | Thin SDK helpers the notebook and scripts share. |
-| [`verify_policies.py`](verify_policies.py) | Replays the **real** captured context through Cedar locally — proves each policy fires *before* you create it anywhere. |
-| [`smoke_test.py`](smoke_test.py) | Asserts the divergence still holds. Suitable for CI. |
+| [`policies/`](policies/) | The four Cedar policies. Paste these into Studio; validated against the published guardrails schema. |
+| [`deep_context.py`](deep_context.py) | Thin SDK helpers the notebook imports. |
+| [`smoke_test.py`](smoke_test.py) | Asserts the divergence still holds. Run by this repo's CI. |
 
 ### Showcasing it
 
@@ -180,67 +177,17 @@ when {
 Three conditions, one sentence: *threaded state was actually used, the
 conversation scores as a jailbreak, and this message does not.*
 
-### Prove they fire before you deploy them
-
-```bash
-python verify_policies.py     # needs the Cedar CLI: cargo install cedar-policy-cli
-```
-
-Captures the real `projected_context` from your deployment for four scenarios
-and replays each through the Cedar evaluator locally. Nothing is simulated —
-the context is the exact bytes Shield emitted; only the decision is computed
-locally. Output from a dev1 run:
-
-```
-[ok] turn 6, threaded                     DENY  (expected DENY)
-         security.block-trajectory-jailbreak-divergence
-         security.block-trajectory-jailbreak-high
-[ok] turn 6, isolated                     ALLOW (expected ALLOW)
-         organization.permit-baseline
-[ok] send_email after the conversation    DENY  (expected DENY)
-         agent-security.block-tool-after-injection-in-session
-[ok] send_email on a clean session        ALLOW (expected ALLOW)
-         organization.permit-baseline
-```
-
-The failure mode this exists to prevent is a rule that validates cleanly and
-then never matches — see both drifts below. It also belongs in CI: a Shield
-projection change that stops emitting a key turns a policy inert without
-changing a line of the policy.
-
-> **This is a pre-flight check, not a deployment test.** Shield evaluates with
-> `cedar-go`; this replays with the Rust `cedar-policy-cli` — same language,
-> two implementations. It also sends a reduced context (the attributes the
-> policies read, plus the schema-required core). And it cannot touch the parts
-> that only exist in a tenant: the Admin → AuthZ → Shield sync that makes a
-> policy *active*, enforce-vs-monitor handling (`effective_mode` /
-> `actual_decision`), `@reject_message` reaching the caller, or precedence
-> against policies already loaded there.
->
-> Those were confirmed separately by deploying to dev1 — see *Verified under
-> live enforcement* above, where both engines agreed on every scenario. Still
-> deploy in monitor mode first on any new tenant.
-
 ### Creating them
 
-`create_policies.py` reads `policies/*.cedar` directly, so what runs in your
-tenant is byte-for-byte what is reviewed here.
+Paste each file's Cedar into **Studio → Guardrails → Policies → New**. Your
+project already has a `Permit Baseline`, so skip `00_baseline.cedar` unless the
+project is genuinely empty.
 
-```bash
-python create_policies.py --dry-run                      # preview
-python create_policies.py --only 01,02 --mode enforce
-python create_policies.py --only 03    --mode monitor    # see below
-```
-
-> **Policy creation does not accept a Shield service key.** Admin resolves
-> account credentials from its own store, and a `zid_sk_…` Shield key is not
-> one — it returns `400 {"error": "Missing or invalid account credentials"}`.
-> You need a **Studio session token** (Clerk): DevTools → Network → any
-> `/v2/admin/…` request → the `Authorization: Bearer …` header. The same flow
-> works against a customer tenant under Clerk impersonation.
->
-> Or skip the script entirely and paste the Cedar into
-> **Studio → Guardrails → Policies → New**.
+| File | Policy name | Category | Mode |
+| --- | --- | --- | --- |
+| `01_trajectory_escalation.cedar` | Multi-Turn Trajectory Escalation | `security` | enforce |
+| `02_session_accumulation.cedar` | Session Risk Accumulation | `agent-security` | enforce |
+| `03_dual_attribution.cedar` | Dual Attribution | `agent-identity` | **monitor** |
 
 > **Put policy 03 in monitor mode on a demo tenant.** Its second rule blocks
 > *unverified* agents from sensitive tools, and a bare service key

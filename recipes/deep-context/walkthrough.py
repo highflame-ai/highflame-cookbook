@@ -133,9 +133,9 @@ def _(client, mo):
          if _ours else
          "⚠️ **This recipe's policies are not loaded yet.** The scores below are "
          "real and will still show the divergence, but every decision will come "
-         "back `allow`, because nothing is written to act on it. Create them "
-         "first: `python create_policies.py --dry-run` to preview, then see the "
-         "README for the credential you need."}
+         "back `allow`, because nothing is written to act on it. Paste the Cedar "
+         "from `policies/` into Studio → Guardrails → Policies → New, then re-run "
+         "— the README has the exact steps and modes."}
         """
     )
     return
