@@ -58,11 +58,41 @@ def _(mo):
         r"""
         ## 0. Connect
 
+        ### 1. Register the agent in Studio
+
+        This notebook runs as **one agent you register by hand**, in the UI — not on
+        your account key. That is what makes section 7 work: every decision below is
+        attributed to that agent by name, and to the human it acts for.
+
+        **Studio → Registry → Agents → Inventory → Register Identity**
+
+        | Field | Value |
+        | --- | --- |
+        | Name | `Deep Context Demo`, or any name |
+        | Identity type | `agent` |
+        | Sub type | `human_proxy` |
+        | Trust level | `first_party` |
+        | Credential policy | the default |
+
+        **Trust level is the field that changes what you see.** Anything that is not a
+        registered agent arrives as `unverified`, and the dual-attribution policy in
+        [`policies/`](policies/) refuses *every* sensitive tool call from an unverified
+        agent — including the clean-session control in section 6, which is half the
+        point of that section. Registered `first_party`, section 6 shows a contrast
+        instead of a wall of refusals.
+
+        The key is shown **once**, at creation. It starts with `zid_sk_`.
+
+        ### 2. Give the notebook the key
+
         ```bash
         pip install -r requirements.txt
-        cp .env.example .env     # add your key and point it at your environment
+        cp .env.example .env     # paste the key, and point it at your environment
         marimo run walkthrough.py
         ```
+
+        `.env` is gitignored, so the key stays out of git and out of this notebook's
+        saved output.
         """
     )
     return
