@@ -73,7 +73,7 @@ def _(mo):
         | Field | Value |
         | --- | --- |
         | Name | `Deep Context Demo`, or any name |
-        | Identity type | `agent` |
+        | External ID | `assistant` |
         | Sub type | `human_proxy` |
         | Trust level | `first_party` |
         | Credential policy | the default |

@@ -93,9 +93,9 @@ is not* — the condition a single-turn filter has no way to evaluate.
 ## Quickstart
 
 **1. Register the agent in Studio.** [Highflame Studio](https://studio.highflame.ai) →
-**Registry** → **Agents** → **Inventory** → **Register Identity**. Identity type `agent`,
-sub type `human_proxy`, trust level `first_party`, the default credential policy. The key
-starts with `zid_sk_` and is shown once, on creation, so copy it then.
+**Registry** → **Agents** → **Inventory** → **Register Identity**. Use external ID
+`assistant`, sub type `human_proxy`, trust level `first_party`, and the default credential
+policy. The key starts with `zid_sk_` and is shown once, on creation, so copy it then.
 
 The recipe runs as that agent rather than on an account key — which is what lets every
 decision below name *the agent* and the human it acts for. Trust level is the field that
