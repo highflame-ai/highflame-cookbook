@@ -128,6 +128,12 @@ exception — the demo catches it and shows the policy reason.
 
 ## Mode B — Shield as a LiteLLM guardrail hook
 
+> **Deploying this into a LiteLLM proxy you already run?** Work through
+> [`mode_b_deploy_and_test.ipynb`](mode_b_deploy_and_test.ipynb). It builds the gateway image,
+> wires the config, proves the guardrail is actually consulted, and runs twelve attack scenarios
+> (injection, multi-turn jailbreak, poisoned tool definition, leaked tool result, streaming) against
+> the running proxy.
+
 When you want LiteLLM to keep making every provider call itself and only ask Highflame
 *"is this allowed?"*, register a guardrail. Shield's guard endpoint takes a **JWT**, not a
 raw API key — so the hook uses the Highflame SDK, which mints and refreshes the JWT from
@@ -219,6 +225,48 @@ same config), the `*_mcp_call` modes inspect that traffic with no extra code.
 > the MCP gateway and you prefer single-point enforcement, drop `post_call` down to
 > response-text-only by removing it — but keep it if any agents execute tools locally,
 > since local tools never reach the `*_mcp_call` hooks.
+
+### Who the traffic is attributed to
+
+Your proxy holds one `HIGHFLAME_API_KEY`, so Shield authenticates every call as the gateway. Without
+help, Studio shows a single caller for every developer and agent behind it.
+
+LiteLLM already knows who called. `HighflameGuardrail` reads that out of `request_data["metadata"]`
+and sends it to Shield as guard metadata, which Observatory shows as the event's **User**. The
+`session_id` is LiteLLM's own, unaltered, so a Highflame event lines up with the same conversation
+in your LiteLLM logs and spend records.
+
+| Source | Needs the LiteLLM DB |
+| --- | --- |
+| `x-litellm-end-user-id` / `x-litellm-customer-id` header — always checked, no config | no |
+| the OpenAI-standard `user` body field | no |
+| the virtual key's owner/team/org (`user_api_key_user_id`, `user_api_key_team_id`, …) | yes |
+
+A different header? Map it with `general_settings.user_header_mappings`. Nothing supplied? The
+caller becomes `unattributed`. Set `HIGHFLAME_LOG_CALLER=1` to log what each request resolved to.
+
+What Shield does with it:
+
+| Observatory field | Source | Can the gateway set it? |
+| --- | --- | --- |
+| **Session** | the guard call's `session_id` | **yes** — LiteLLM's session id, verbatim and signed into Shield's receipt |
+| **Framework** | `metadata["source"]` | **yes** — the guardrail sends `litellm-gateway` |
+| **User** (the name shown) | `metadata["user_name"]` | **yes**, while the gateway key's JWT carries no user claim |
+| **User** (the id it indexes by) | the JWT principal | **no** |
+| **Owner** | the JWT principal | **no** |
+
+> **The user name is a label, not an index.** Explore shows the caller, but the event is still
+> indexed under the gateway's own principal — so a filter by user groups your whole gateway
+> together. Filter by **Session** to follow one conversation. Setting the name also stops Studio
+> looking it up in your directory, so the email second line is replaced by the caller string.
+
+> **⚠️ This is attribution, not authentication.** A header is set by the client, so anyone who can
+> reach the proxy directly can put someone else's name in it. Trust it only behind an ingress that
+> sets the header and strips the client's copy. For an identity a caller *cannot* claim, give each
+> caller its own Highflame credential (`highflame.agents.register` → a per-agent key) — then Shield's
+> `agent_identity` names the caller itself, not the gateway. Note that this still does **not** move
+> the **User** id or **Owner**: a registered agent's subject is a SPIFFE URI and its `act.sub` is the
+> account that registered it, so both stay with your account either way.
 
 …or, for the pure SDK (no proxy), call the same guard inline around your `completion()` —
 the file includes a `guarded_completion()` helper that does exactly that.
