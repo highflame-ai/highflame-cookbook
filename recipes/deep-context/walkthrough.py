@@ -1,7 +1,7 @@
 import marimo
 
 __generated_with = "0.9.0"
-app = marimo.App(width="medium", app_title="Multi-turn deep context — live")
+app = marimo.App(width="medium", app_title="Multi-turn guardrails — live")
 
 
 @app.cell
@@ -14,7 +14,7 @@ def _():
 def _(mo):
     mo.md(
         r"""
-        # The guardrail a single-turn filter cannot express
+        # Multi-turn guardrails — stop the attack no single message reveals
 
         Every content filter scores the message in front of it. A **crescendo**
         attack is built to defeat exactly that: no single message is alarming,
