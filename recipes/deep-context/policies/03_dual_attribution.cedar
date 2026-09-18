@@ -7,57 +7,29 @@
 // be a policy rather than a reporting convention nobody enforces.
 //
 //   The agent (from the authenticated identity, NOT from the request body):
-//     agent_id          String  e.g. "capvista-research-agent"
+//     agent_id          String  e.g. "research-agent"
 //     agent_type        String  "orchestrator" | "autonomous" | "tool_agent" | "human_proxy"
 //     agent_trust_level String  "first_party" | "verified_third_party" | "unverified"
 //     agent_framework   String  e.g. "langgraph", "claude-code", "crewai"
 //     agent_publisher   String
 //
-//   The accountable human (from the ZeroID NHI claims on the credential):
-//     principal         present only when the caller authenticated with a
-//                       ZeroID agent credential. Absent for plain RS256 human
+//   The accountable human (from the identity claims on the credential):
+//     principal         Present when the caller authenticated with a
+//                       registered agent credential. Absent for plain user
 //                       tokens and internal-service callers.
 //
 // Both sides travel into Observatory on every event (`user_id` and
 // `labels.agent_id` / `labels.agent_trust_level`), which is what makes the
-// session timeline in the walkthrough attributable end to end instead of a
-// list of anonymous decisions.
+// session timeline attributable end to end rather than a list of anonymous
+// decisions.
 //
-// ---------------------------------------------------------------------------
-// ⚠️ Known platform drift — read before tightening these rules
-// ---------------------------------------------------------------------------
-// At runtime Shield projects `principal` as a nested RECORD
-// (highflame-shield internal/scheduler/nhi.go buildPrincipalContext):
-//
-//     principal: { identity_type, sub_type, trust_level, framework, publisher,
-//                  capabilities: Set<String>, scopes: Set<String>,
-//                  delegation_depth: Long, act_sub, act_iss, mission_id,
-//                  grant_type }
-//
-// `act_sub` is the accountable human — the RFC 8693 delegating party. That is
-// the field you actually want for dual attribution.
-//
-// But the published guardrails schema declares `"principal"?: String`
-// (highflame-policy schemas/guardrails/schema.cedarschema). So the precise
-// rule you want —
-//
-//     unless { context has principal && context.principal has act_sub }
-//
-// — is rejected by schema validation when you save it, even though it is what
-// the evaluator would actually do. Until the schema declares `principal` as a
-// record, the rules below use the existence check `context has principal`,
-// which is type-agnostic and behaves correctly under both shapes. It is a
-// weaker statement ("a ZeroID principal is attached") than the one you want
-// ("a named human is attached"), so treat it as the floor, not the ceiling.
-//
-// Same drift class, worth knowing: the guardrails schema comments list
-// identity_type as "human" | "agent" | "service", while the projector emits
-// "agent" | "application" | "mcp_server" | "service". A rule testing
-// identity_type == "human" validates cleanly and then never fires.
+// Section 1 is the rule worth adopting even if you adopt nothing else here:
+// an agent may not take a privileged action that cannot be attributed to a
+// principal. It turns "we can trace it" into "it cannot happen untraced."
 //
 // Context keys consumed:
 //   - agent_id, agent_type, agent_trust_level
-//   - principal (existence only — see the drift note above)
+//   - principal (existence)
 //   - tool_is_sensitive, tool_category
 //
 // Category:  agent-identity
@@ -75,7 +47,7 @@
 
 @id("agent-identity.require-principal-for-sensitive-tools")
 @name("Require an attached principal for sensitive agent actions")
-@description("Blocks call_tool on a sensitive tool by an agent unless the request carries a ZeroID principal block identifying who the agent acts for.")
+@description("Blocks call_tool on a sensitive tool by an agent unless the request carries a principal identifying who the agent acts for.")
 @severity("critical")
 @tags("category:agent-identity,threat:accountability,detection:rule,surface:call-tool,scope:per-agent")
 @reject_message("Tool execution blocked: this agent invoked a sensitive tool with no accountable principal attached. Every privileged agent action must name the party it acts for.")
@@ -95,6 +67,13 @@ unless {
 // ---------------------------------------------------------------------------
 // Section 2: Trust level gates the blast radius
 // ---------------------------------------------------------------------------
+//
+// A service key authenticates as "unverified" until the agent is registered
+// and adopted in Studio. Run this policy in MONITOR mode until then: in
+// enforce mode this rule blocks every sensitive tool call from an unverified
+// agent — including legitimate ones. Monitor mode records what it would have
+// blocked on every event, so Observatory shows the full picture while nothing
+// breaks. Register the agent, then switch to enforce.
 
 @id("agent-identity.block-unverified-agent-sensitive-tools")
 @name("Block unverified agents from sensitive tools")

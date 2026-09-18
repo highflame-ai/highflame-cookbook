@@ -65,7 +65,7 @@ a real key.
 | [**Registry connectors**](recipes/connectors/) | Provider setup for Entra, Copilot Studio, Okta, Google Workspace, Google Agent Engine, AWS Bedrock | Reference docs | ✅ ready |
 | [**Browser protection**](recipes/browser-protection/) | Connect Highflame Browser Security in Chrome, Firefox, or Safari | Reference docs | ✅ ready |
 | [**Agent protection**](recipes/agent-protection/) | Connect Overwatch (`@highflame/overwatch` on npm); one install monitors every coding agent | Reference docs | ✅ ready |
-| **Multi-turn assistants or agents**, and want guardrails a per-request filter cannot express | [`recipes/deep-context/`](recipes/deep-context/) | Thread one `session_id` through every guard call | Catch crescendo attacks where no single message is alarming; gate a tool call on what the conversation has been doing; attribute every step to an agent *and* a human |
+| [**Multi-turn guardrails**](recipes/deep-context/) | Stop crescendo attacks no single message reveals; gate tool calls on conversation history; attribute every step to agent *and* human | Marimo notebook + Cedar policies | ✅ ready |
 | OpenAI SDK / LangChain (greenfield) | New projects | — | coming soon |
 | Portkey | Teams on Portkey | — | coming soon |
 
