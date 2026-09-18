@@ -1,5 +1,5 @@
 // =============================================================================
-// Multi-Turn Trajectory Escalation  (the guardrail a single-turn filter cannot express)
+// Multi-Turn Trajectory Escalation  (stop the attack no single message reveals)
 // =============================================================================
 // Shield runs two independent injection/jailbreak analyses and projects them
 // as SEPARATE Cedar context keys:

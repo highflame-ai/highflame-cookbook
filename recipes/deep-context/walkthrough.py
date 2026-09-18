@@ -1,7 +1,7 @@
 import marimo
 
 __generated_with = "0.9.0"
-app = marimo.App(width="medium", app_title="Multi-turn deep context — live")
+app = marimo.App(width="medium", app_title="Multi-turn guardrails — live")
 
 
 @app.cell
@@ -14,39 +14,43 @@ def _():
 def _(mo):
     mo.md(
         r"""
-        # The guardrail a single-turn filter cannot express
+        # Multi-turn guardrails — stop the attack no single message reveals
 
-        Every content filter scores the message in front of it. A **crescendo**
-        attack is built to defeat exactly that: no single message is alarming,
-        but the *sequence* is. Each turn is a small, plausible step, and the
-        filter — which has no memory — scores every one of them low.
+        Most guardrails evaluate one message at a time. That design has a blind
+        spot attackers have learned to use. A **crescendo attack** approaches a
+        harmful request through a series of individually reasonable steps, and
+        asks for the payoff in a sentence that, read on its own, contains nothing
+        to object to. A filter that sees only the current message has no way to
+        notice the pattern, because the pattern lives in the conversation rather
+        than in any single turn.
 
-        That is not a tuning failure. A filter with nothing but the current
-        message has nothing to be alarmed about.
+        Highflame Shield addresses this by carrying conversation state across
+        turns. For every message it runs two complementary analyses and makes
+        both available to policy:
 
-        Highflame runs two analyses over every turn and hands Cedar **both**:
-
-        | Cedar context key | What it is | What it can see |
+        | Cedar context key | Detector | What it evaluates |
         | --- | --- | --- |
-        | `injection_pulse_score` | Pulse — single-turn classifier | this message |
-        | `injection_deep_context_score` | DeepContext — stateful GRU keyed on `session_id` | the whole conversation |
-        | `injection_score` | `MAX(pulse, deep_context)` | what the default policies consume |
+        | `injection_pulse_score` | Pulse, a single-turn classifier | the current message |
+        | `injection_deep_context_score` | DeepContext, a stateful model keyed on `session_id` | the conversation so far |
+        | `injection_score` | the higher of the two | what the platform's default policies act on |
 
-        (Plus the three `jailbreak_*` equivalents.)
+        The same three keys exist for jailbreak detection.
 
-        Because those are separate keys, you can write a policy on the **gap
-        between them** — high trajectory score, low turn score — which reads,
-        literally: *the history is an attack and this message is not.* Nothing
-        that scores one message at a time can express that condition, because
-        it only ever has one number.
+        Because the two scores are exposed separately, a policy can reason about
+        the relationship between them. A high conversation score alongside a low
+        message score describes a specific situation: the conversation has
+        become an attack even though the current message looks harmless. That
+        condition is what this recipe detects and acts on.
 
-        **What you will see.** The same six messages, run twice. Once with a
-        stable `session_id`, once with a fresh one per turn. Same text, same
-        detectors, same tenant — only memory differs. Then the same tool call,
-        made twice, allowed once.
+        **What this notebook shows.** The same six-message conversation is
+        evaluated twice — once under a stable `session_id`, so Shield can use the
+        history, and once with a fresh `session_id` per turn, so it cannot.
+        Everything else is identical. A tool call is then made on both sessions,
+        to show how a conversation's history shapes what the agent is allowed to
+        do afterwards. Finally, the session timeline in Observatory shows every
+        step attributed to both the agent and the person operating it.
 
-        Every cell makes a real call against a live deployment. Nothing is
-        mocked and nothing is asserted from documentation.
+        Every cell runs against a live deployment. Nothing is mocked.
         """
     )
     return
@@ -58,11 +62,42 @@ def _(mo):
         r"""
         ## 0. Connect
 
+        ### 1. Register the agent in Studio
+
+        This notebook runs as a registered agent rather than on an account key.
+        That is what allows Shield to attribute every decision to a named agent
+        and to the person operating it, which section 7 relies on.
+
+        **Studio → Registry → Agents → Inventory → Register Identity**
+
+        | Field | Value |
+        | --- | --- |
+        | Name | `Deep Context Demo`, or any name |
+        | Identity type | `agent` |
+        | Sub type | `human_proxy` |
+        | Trust level | `first_party` |
+        | Credential policy | the default |
+
+        Trust level deserves a moment's attention. A credential that is not a
+        registered agent arrives as `unverified`, and the dual-attribution policy
+        in [`policies/`](policies/) does not allow unverified agents to call
+        sensitive tools. Section 6 compares a clean session against an escalated
+        one, and that comparison is only meaningful if the clean session is
+        allowed to proceed — which is why the agent is registered as
+        `first_party`.
+
+        The key is shown once, at creation, and starts with `zid_sk_`.
+
+        ### 2. Give the notebook the key
+
         ```bash
         pip install -r requirements.txt
-        cp .env.example .env     # add your key and point it at your environment
+        cp .env.example .env     # paste the key, and point it at your environment
         marimo run walkthrough.py
         ```
+
+        `.env` is gitignored, so the key stays out of git and out of this notebook's
+        saved output.
         """
     )
     return
@@ -129,13 +164,13 @@ def _(client, mo):
         f"""
         **Policies loaded in this project:** {", ".join(f"`{n}`" for n in _loaded) or "none"}
 
-        {"✅ This recipe's policies are live — you will see real blocks below."
+        {"This recipe's policies are active in this project. The decisions below reflect them."
          if _ours else
-         "⚠️ **This recipe's policies are not loaded yet.** The scores below are "
-         "real and will still show the divergence, but every decision will come "
-         "back `allow`, because nothing is written to act on it. Paste the Cedar "
-         "from `policies/` into Studio → Guardrails → Policies → New, then re-run "
-         "— the README has the exact steps and modes."}
+         "**This recipe's policies are not loaded in this project yet.** The scores "
+         "below are still real and will show the difference between the two runs, "
+         "but every decision will return `allow`, because no policy acts on them. "
+         "Paste the Cedar from `policies/` into Studio → Guardrails → Policies → New, "
+         "then re-run. The README lists the recommended mode for each policy."}
         """
     )
     return
@@ -149,13 +184,15 @@ def _(mo):
 
         ## 1. The conversation
 
-        Six turns. Read each one on its own and ask whether you would block it.
-        Then read them in order.
+        The six turns below form the conversation this notebook evaluates. Read
+        them first one at a time, considering whether each would warrant a
+        refusal on its own, and then read them in order.
 
-        This is a textbook crescendo: a benign frame, a plausible follow-up,
-        a hypothetical, a reframe, and finally a payoff request phrased as
-        a summary of what was "already explained." No turn introduces the
-        attack. The sequence is the attack.
+        This is a typical crescendo. It opens with an innocuous framing, moves
+        through plausible follow-ups and a hypothetical, drops the framing, and
+        finally asks for the payload as though it were merely a summary of what
+        has already been discussed. No single turn introduces the harmful
+        request; it emerges from the sequence.
         """
     )
     return
@@ -174,10 +211,10 @@ def _(mo):
 
     mo.md(
         "\n".join(f"{i}. *{t}*" for i, t in enumerate(TURNS, 1))
-        + "\n\nTurn 6 is the one to keep your eye on. On its own it is a "
-        "scheduling-grade sentence — it names nothing, asks for nothing "
-        "specific, and would pass any content filter you have ever used. "
-        "It is also the turn that extracts the payload."
+        + "\n\nTurn 6 is the one to watch. Taken alone it is an unremarkable "
+        "sentence: it names no substance and asks for nothing specific, and a "
+        "content filter has no reason to flag it. In the context of the five "
+        "turns before it, it is the request that extracts the payload."
     )
     return (TURNS,)
 
@@ -188,15 +225,17 @@ def _(mo):
         r"""
         ---
 
-        ## 2. Run A — stateless
+        ## 2. Run A — each turn evaluated in isolation
 
-        A fresh `session_id` per turn, so DeepContext starts from empty hidden
-        state every time. This is the control: **it is what a filter with no
-        conversation memory is structurally limited to**, including Bedrock
-        Guardrails, a regex tier, or any per-request classifier.
+        Every turn is sent with a fresh `session_id`, so DeepContext begins from
+        empty state each time and Shield has no history to draw on. This is the
+        control run. It shows what any guardrail that evaluates requests
+        independently is able to see — a per-request classifier, a regex tier,
+        or a hosted content filter without session state.
 
-        Note `mt` (`multi_turn_detection`) is `False` on every row — Shield is
-        telling you it had no history to use.
+        The `mt` column is `multi_turn_detection`. It is `False` on every row
+        here, which is how Shield records that no conversation history was
+        available for the decision.
         """
     )
     return
@@ -224,13 +263,14 @@ def _(mo):
         r"""
         ---
 
-        ## 3. Run B — threaded
+        ## 3. Run B — the same turns, as one conversation
 
-        The same six strings, one `session_id`. DeepContext now carries hidden
-        state from turn to turn, and Shield accumulates session history.
+        The same six messages are now sent under a single `session_id`.
+        DeepContext carries its state from turn to turn, and Shield accumulates
+        session-level history alongside it.
 
-        `mt` flips to `True` from turn 2 onward — turn 1 has no prior state to
-        thread, which is why it reads `False`.
+        `multi_turn_detection` becomes `True` from turn 2 onward. Turn 1 has no
+        earlier state to draw on, so it reads `False` in this run as well.
         """
     )
     return
@@ -253,11 +293,11 @@ def _(TURNS, client, mo, new_session_id, run_threaded):
     if _blocked:
         _first = _blocked[0]
         _note = (
-            f"\n\nThe block lands on turn {_first.index}, the moment "
-            f"`jailbreak_deep_context_score` ({_first.jailbreak_deep}) crosses 60 while "
-            f"`jailbreak_pulse_score` ({_first.jailbreak_pulse}) is still under 40. "
-            "The message the user actually sees is the `@reject_message` from the rule "
-            f"that fired:\n\n> {_first.reject_messages[-1] if _first.reject_messages else ''}"
+            f"\n\nThe first refusal comes on turn {_first.index}, where "
+            f"`jailbreak_deep_context_score` ({_first.jailbreak_deep}) has risen above 60 "
+            f"while `jailbreak_pulse_score` ({_first.jailbreak_pulse}) remains below 40. "
+            "The user sees the `@reject_message` from the rule that fired:"
+            f"\n\n> {_first.reject_messages[-1] if _first.reject_messages else ''}"
         )
 
     mo.md(
@@ -274,11 +314,12 @@ def _(mo):
         r"""
         ---
 
-        ## 4. The divergence
+        ## 4. Comparing the two runs
 
-        Put the two runs side by side on the same turn. Same string, same
-        detectors, same tenant. The only difference is whether Shield was
-        allowed to remember the previous five messages.
+        The table below places the two runs side by side, turn for turn. The
+        messages, detectors and tenant are the same. The only difference is
+        whether Shield was able to use the preceding turns when scoring each
+        one.
         """
     )
     return
@@ -294,12 +335,13 @@ def _(mo, stateless, threaded):
         )
         _t6, _s6 = threaded[-1], stateless[-1]
         _verdict = (
-            f"\n\nOn turn 6 — *\"{_t6.text}\"* — the identical sentence scores "
-            f"**{_s6.jailbreak_deep}** with no history and **{_t6.jailbreak_deep}** "
-            f"with it. The single-turn classifier reads **{_t6.jailbreak_pulse}** "
-            "on that same turn and is not wrong: judged alone, the sentence is "
-            "innocuous. It is only an attack as the sixth step of this "
-            "particular conversation."
+            f"\n\nOn turn 6 — *\"{_t6.text}\"* — the same sentence scores "
+            f"**{_s6.jailbreak_deep}** without history and **{_t6.jailbreak_deep}** "
+            f"with it. The single-turn classifier reads **{_t6.jailbreak_pulse}** on "
+            "that turn, which is a reasonable assessment of the sentence in "
+            "isolation. The difference between the two scores is not a "
+            "disagreement between detectors. It reflects that one of them can see "
+            "the five turns that give this sentence its meaning."
         )
     else:
         _rows, _verdict = "", ""
@@ -317,9 +359,10 @@ def _(mo):
         r"""
         ---
 
-        ## 5. The policy
+        ## 5. The policy that acts on it
 
-        The divergence is the condition, so it is also the policy. From
+        The gap between the two scores is a condition a policy can express
+        directly. From
         [`policies/01_trajectory_escalation.cedar`](policies/01_trajectory_escalation.cedar):
 
         ```cedar
@@ -336,19 +379,19 @@ def _(mo):
         };
         ```
 
-        Read the three conditions as one sentence: *threaded state was actually
-        used, the conversation scores as a jailbreak, and this message does
-        not.*
+        The three conditions together describe one situation: conversation
+        history was available and used, the conversation as a whole scores as a
+        jailbreak, and the current message on its own does not.
 
-        The `multi_turn_detection` guard matters more than it looks. Without it
-        the rule would also fire on single-turn traffic where DeepContext
-        happened to score high on its own — which is a different finding, and
-        one the platform's default rules already own at `injection_score >= 86`
-        / `jailbreak_score >= 81`.
+        The `multi_turn_detection` guard is doing more than it may appear.
+        Without it, the rule would also fire on single-turn traffic where
+        DeepContext happened to score high by itself. That is a legitimate
+        finding, but a different one, and the platform's default rules already
+        handle it at `injection_score >= 86` and `jailbreak_score >= 81`.
 
-        On the run above this fires on **turns 5 and 6** and on nothing in the
-        stateless run — where `multi_turn_detection` is false, so the first
-        condition fails no matter how the scores land.
+        In the threaded run above, this rule fires on turns 5 and 6. In the
+        stateless run it never fires, because `multi_turn_detection` is false on
+        every turn and the first condition is not met, regardless of the scores.
         """
     )
     return
@@ -376,13 +419,20 @@ def _(mo, threaded):
                     "| --- | --- | --- | --- | --- |\n" + _rows
                 )
         _md = "\n\n".join(_parts) or "_no condition detail returned_"
-        _md += (
-            "\n\nNote the last row: the condition that had to be **false** for a "
-            "single-turn filter — a low pulse score — is doing real work here. "
-            "It is the half of the rule that says *and this message is not*."
+        _md = (
+            "Shield returns the evaluation of each condition, so the reasoning "
+            "behind a decision can be shown rather than asserted.\n\n"
+            + _md
+            + "\n\nThe last row is worth noting. A low single-turn score is a "
+            "required condition here, and it is that score's disagreement with "
+            "the conversation score that identifies the pattern. A guardrail "
+            "limited to the single-turn score alone would have nothing to act on."
         )
     else:
-        _md = "_nothing was blocked — are the policies loaded and in enforce mode?_"
+        _md = (
+            "_No decision in this run was a refusal. Check that the policies are "
+            "loaded and set to enforce mode._"
+        )
 
     mo.md(_md)
     return
@@ -394,22 +444,21 @@ def _(mo):
         r"""
         ---
 
-        ## 6. The payoff
+        ## 6. Gating the action, not only the conversation
 
-        Blocking the conversation is useful. Blocking what the conversation was
-        *for* is what a customer actually buys.
+        Refusing individual turns is useful, but it is rarely what an attacker
+        is ultimately after. What they want is a privileged action at the end
+        of the conversation — an email sent, a record changed, a file read. The
+        question that matters when that action is requested is therefore not
+        only whether the tool call looks suspicious in itself, but what the
+        conversation leading up to it has been doing.
 
-        An attacker expects some turns to be refused — what they want is one
-        privileged action at the end. So the question worth asking at a tool
-        call is not "is this tool call suspicious?" but **"what has this
-        conversation been doing up to now?"**
-
-        Below: the identical `send_email` call, same arguments, same agent,
-        made on two sessions. One clean, one carrying the conversation above.
-
-        The mechanism is one string — the tool call rides the **same
-        `session_id`** as the conversation, so `session_max_jailbreak_score`
-        follows it.
+        Shield answers that question by carrying session history into tool-call
+        decisions. Below, the identical `send_email` call — same arguments, same
+        agent — is evaluated on two sessions: a clean one, and the one that
+        carried the conversation above. The link between the conversation and
+        the tool call is the `session_id` they share, which is how
+        `session_max_jailbreak_score` follows the conversation into the action.
         """
     )
     return
@@ -441,29 +490,29 @@ def _(client, guard_tool, mo, new_session_id, session_id):
         )
         _extra = [m for m in dirty.reject_messages if "session" in m.lower()]
         _table += (
-            "\n\nNothing about the tool call changed. The tool is equally "
-            "sensitive in both columns and the arguments are byte-identical. "
-            "What changed is that one of them is the last step of a "
-            "conversation that scored 97:\n\n"
+            "\n\nThe tool call itself is the same in both columns: the tool is "
+            "equally sensitive and the arguments are identical. What differs is "
+            "the session each call belongs to. One of them is the final step of "
+            "a conversation whose jailbreak score reached 97, and the policy "
+            "responds to that history:\n\n"
             f"> {_extra[0] if _extra else dirty.policy_reason}"
         )
 
         if clean.actual_decision == "deny" and clean.decision != "deny":
             _table += (
-                "\n\n**Read the two decision rows separately — they disagree on "
-                "the clean session, and that is worth understanding.** The "
+                "\n\nThe two decision rows differ on the clean session, and the "
+                "reason is instructive. The "
                 "`agent-identity.block-unverified-agent-sensitive-tools` rule "
-                "fires on *both* columns, because this notebook authenticates "
-                "with a bare service key and Shield resolves it as "
-                "`agent_trust_level=\"unverified\"`. That rule lives in a policy "
-                "deployed in **monitor** mode, so it records "
-                "`actual_decision=\"deny\"` without stopping anything — which is "
-                "exactly what monitor mode is for, and why the clean call still "
-                "proceeds.\n\n"
-                "So the contrast to read is the **decision** row: the clean "
-                "call proceeds, the escalated one does not. Register and adopt "
-                "the agent to raise its trust level, and that rule stops firing "
-                "on legitimate traffic and can move to enforce."
+                "fires in both columns, because this credential resolves as "
+                "`agent_trust_level=\"unverified\"`. That rule belongs to a policy "
+                "deployed in monitor mode, so it records "
+                "`actual_decision=\"deny\"` without stopping the call — which is "
+                "what monitor mode is for.\n\n"
+                "The row to compare is therefore **decision**: the clean call "
+                "proceeds and the escalated one does not. Registering the agent "
+                "with a higher trust level, as described in section 0, stops the "
+                "rule firing on legitimate traffic and allows it to move to "
+                "enforce."
             )
     else:
         _table = "_no client_"
@@ -478,16 +527,17 @@ def _(mo):
         r"""
         ---
 
-        ## 7. Who did it — agent *and* human
+        ## 7. Attribution — the agent and the person behind it
 
-        "Which agent did this?" is half an answer. The other half is "on whose
-        behalf?" An agent is not an accountable party; the person who pointed
-        it at the work is.
+        Knowing which agent took an action is only part of the accountability
+        picture. An agent acts on someone's behalf, and a complete record names
+        that person too.
 
-        Shield resolves both from the credential — never from anything the
-        caller puts in the request body — and writes both onto every
-        Observatory event. That is what makes the timeline below attributable
-        end to end rather than a list of anonymous decisions.
+        Shield resolves both identities from the credential used to make the
+        request — never from anything the caller places in the request body —
+        and records both on every event it emits to Observatory. The result is
+        a session timeline in which each step is attributable end to end,
+        rather than a list of decisions with no owner.
         """
     )
     return
@@ -517,8 +567,8 @@ def _(client, guard_prompt, mo, new_session_id):
                 "\n**Accountable principal** (the `principal` record)\n\n"
                 "| field | value |\n| --- | --- |\n"
                 + "".join(f"| `{k}` | `{v}` |\n" for k, v in sorted(_principal.items()))
-                + "\n`act_sub` is the human. It is the RFC 8693 delegation "
-                "actor — the party the agent is acting for."
+                + "\n`act_sub` identifies the person. It is the RFC 8693 "
+                "delegation actor: the party on whose behalf the agent is acting."
             )
     else:
         _md = "_no client_"
@@ -558,9 +608,9 @@ def _(cfg, mo, session_events, session_id, session_url):
         _md
         + f"\n\nOpen the same session in Studio: [{session_url(cfg, session_id)}]"
         f"({session_url(cfg, session_id)})\n\n"
-        "Events can lag the guard call by a few seconds — they travel Shield → "
-        "OTEL collector → ClickHouse → Observatory. Re-run this cell if the "
-        "table is short."
+        "Events reach Observatory a few seconds after the guard call, by way of "
+        "the OpenTelemetry collector and ClickHouse. If the table looks "
+        "incomplete, re-run this cell."
     )
     return
 
@@ -571,31 +621,30 @@ def _(mo):
         r"""
         ---
 
-        ## 8. Why a stateless filter cannot catch this
+        ## 8. What conversation state makes possible
 
-        Not "does not", **cannot**. The distinction matters, because it is the
-        difference between a tuning gap a competitor closes next quarter and a
-        structural one they cannot.
+        The comparison below summarises what changes when guardrails can see
+        the conversation rather than only the current message. The Highflame
+        column uses the figures from this run. The other column is Run A — the
+        same detectors with history unavailable — so it represents what any
+        per-request filter can observe, rather than a weaker system chosen for
+        contrast.
 
-        | | Stateless content filter | Highflame |
+        | | Per-request content filter | Highflame Shield |
         | --- | --- | --- |
-        | Input to the decision | the current message | the current message **+ the conversation's hidden state** |
-        | Turn-6 jailbreak score | 22 | **97** |
-        | Can express "history is an attack, this turn is not" | no — it has one number | yes — `deep_context` vs `pulse` are separate keys |
-        | Can gate a tool call on earlier turns | no — the tool call is a fresh request | yes — `session_max_*`, `session_cumulative_risk_score` |
-        | Remembers a refused attempt | no | yes — `session_max_*` does not decay |
-        | Attribution on the decision | whatever the caller asserts | agent + principal resolved from the credential |
+        | Input to the decision | the current message | the current message and the conversation's accumulated state |
+        | Jailbreak score on turn 6 | 22 | **97** |
+        | Express "the conversation is an attack, this message is not" | not possible with a single score | yes — `deep_context` and `pulse` are separate keys |
+        | Gate a tool call on earlier turns | no — each request is evaluated alone | yes — `session_max_*`, `session_cumulative_risk_score` |
+        | Remember a refused attempt | no | yes — `session_max_*` does not decay within the session |
+        | Attribution on the decision | whatever the caller asserts | agent and principal, resolved from the credential |
 
-        A per-request filter is given one message and asked for a verdict. You
-        cannot recover "this is the sixth step of a crescendo" from a string
-        that does not contain the first five. Adding a bigger model to that
-        architecture makes each turn better classified; it does not make the
-        turn contain the conversation.
-
-        The scores in the second column came out of the run above. The stateless
-        column is Run A, which is the same detectors with memory switched off —
-        so it is a fair floor for what any per-request filter can see, not a
-        strawman.
+        A per-request filter is given one message and asked for a verdict. The
+        fact that a sentence is the sixth step of a crescendo cannot be
+        recovered from a string that does not contain the first five. A more
+        capable classifier improves the verdict on each message; it does not
+        give the message access to the conversation. Carrying that state is what
+        Shield adds, and it is the basis for every decision shown above.
         """
     )
     return
