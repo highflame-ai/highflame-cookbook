@@ -37,6 +37,18 @@ try:
     )
     text = (reply.choices[0].message.content or "").strip()
     assert text, "the gateway returned an empty completion"
+    # A refused request comes back as a NORMAL completion, so an existing OpenAI client keeps
+    # working and never raises -- and its text is Highflame's refusal, not the model's reply.
+    # Checking only that the text is non-empty therefore passes on a block, which let this test
+    # report OK while the gateway refused every request. The verdict is on the completion id,
+    # so read that, exactly as call_gateway() does in the notebook.
+    #
+    # Handled here rather than with `assert`, because the handler below deliberately prints the
+    # exception type only and would swallow the reason.
+    if reply.id.startswith("chatcmpl-blocked"):
+        print(f"FAIL: the gateway REFUSED a benign request: {text[:120]!r}")
+        print("      Check the agent credential's scopes and the policies on this project.")
+        sys.exit(1)
     print(f"OK: reached the model through the gateway, reply={text[:20]!r}")
 except Exception as exc:  # noqa: BLE001
     # Type and status only. A provider's 401 body can embed a masked form of the rejected key,
