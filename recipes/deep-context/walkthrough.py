@@ -609,7 +609,7 @@ def _(cfg, mo, session_events, session_id, session_url):
         + f"\n\nOpen the same session in Studio: [{session_url(cfg, session_id)}]"
         f"({session_url(cfg, session_id)})\n\n"
         "Events reach Observatory a few seconds after the guard call, by way of "
-        "the OpenTelemetry collector and ClickHouse. If the table looks "
+        "the OpenTelemetry pipeline. If the table looks "
         "incomplete, re-run this cell."
     )
     return
