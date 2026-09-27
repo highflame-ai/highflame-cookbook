@@ -52,7 +52,7 @@ deployment.
 
    | Register | Scopes on its credential policy |
    | --- | --- |
-   | type `agent`, sub type `orchestrator` | `nhi:manage`, `tools:read`, `tools:execute`, `orders:read`, `kb:read`; add `refunds:read` for the Strands Swarm notebook |
+   | type `agent`, sub type `orchestrator` | `nhi:manage`, `orders:read`, `kb:read`; add `refunds:read` for the Strands Swarm notebook |
 
    This identity **is** the orchestrator: it registers the specialists and delegates to them, so
    its policy's scopes are the ceiling on everything it can hand out. Omit `orders:read` or
