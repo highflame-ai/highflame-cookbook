@@ -2,3 +2,7 @@ highflame>=0.3.25  # registers the agent identities
 openai>=1.0             # the gateway speaks the OpenAI API
 python-dotenv>=1.0
 jupyterlab>=4.0
+# The Strands + MCP notebooks
+strands-agents[openai]>=1.57       # the agent; OpenAIModel reaches Bedrock through the gateway
+mcp>=2.1                           # the MCP client and its OAuth provider (the 2.x callback API)
+aws-bedrock-token-generator>=1.1   # mints a short-term Bedrock API key from your AWS credentials
