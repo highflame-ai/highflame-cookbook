@@ -11,6 +11,8 @@ the caller before it reaches your provider. No SDK, and no code change beyond th
 | If you want to | Read |
 | --- | --- |
 | Understand what the gateway does to your traffic, runnably | [`gateway_quickstart.ipynb`](gateway_quickstart.ipynb) |
+| Run a Strands agent on Bedrock through the gateway, with Notion's MCP server reached directly | [`strands_bedrock_mcp_via_ai_gateway.ipynb`](strands_bedrock_mcp_via_ai_gateway.ipynb) |
+| Run the same agent with its MCP traffic through the MCP gateway too | [`strands_bedrock_mcp_via_mcp_gateway.ipynb`](strands_bedrock_mcp_via_mcp_gateway.ipynb) |
 | Point Claude Code at the gateway | [`claude.md`](claude.md) |
 | Point Codex at the gateway | [`codex.md`](codex.md) |
 | Point GitHub Copilot at the gateway | [`copilot.md`](copilot.md) |
