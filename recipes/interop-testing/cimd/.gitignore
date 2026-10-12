@@ -1,0 +1,5 @@
+.venv/
+transcripts/
+__pycache__/
+*.pyc
+client-signing-key.jwk

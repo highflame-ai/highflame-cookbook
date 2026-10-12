@@ -1,0 +1,17 @@
+# mcp 2.0.0 is the floor on purpose: OAuthClientProvider(client_metadata_url=...)
+# arrived there, and without it the client cannot present a CIMD client_id at
+# all. anyio and httpx2 arrive with it; they are named because the notebook
+# imports them directly and should not rely on a transitive pin staying put.
+mcp>=2.0.0
+anyio>=4.0
+httpx2>=2.0
+
+# client_metadata.py — the document origin, run on its own behind a tunnel.
+fastapi>=0.115
+uvicorn>=0.30
+
+# The notebook. Register the kernel from THIS venv:
+#   ./.venv/bin/python -m ipykernel install --user --name cimd-interop
+# Running the notebook on conda base instead installs these into conda base.
+ipykernel>=6.29
+jwcrypto>=1.5
