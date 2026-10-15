@@ -102,7 +102,7 @@ https://auth.highflame.ai/oauth2/token
 
 Click **Save**.
 
-If an older setup saved Studio's token URL (`https://studio.highflame.ai/api/cli-auth/token`), the extension replaces it with the AuthN URL above on its own. A token URL on a self-hosted Studio is not replaced: change it to your AuthN URL plus `/oauth2/token`, or the extension cannot get a token.
+If an older setup saved a Highflame-hosted Studio token URL (`https://studio.highflame.ai/api/cli-auth/token`, or the dev and local equivalents), the extension replaces it with the matching AuthN URL on its own. A token URL on a self-hosted Studio is not replaced: change it to your AuthN URL plus `/oauth2/token`, or the extension cannot get a token.
 
 After that, check whether the session is visible.
 **Web AI → Sessions/Events**
