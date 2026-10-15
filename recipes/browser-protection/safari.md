@@ -97,7 +97,7 @@ Shield Endpoint:
 https://api.highflame.ai
 
 Token Endpoint:
-https://studio.highflame.ai/api/cli-auth/token
+https://auth.highflame.ai/oauth2/token
 ```
 
 Click **Save**.
@@ -111,9 +111,9 @@ After that, check whether the session is visible.
 | --- | --- |
 | **API Key** | Studio service key (`zid_sk_…`) |
 | **Shield Endpoint** (SaaS) | `https://api.highflame.ai` |
-| **Token Endpoint** (SaaS) | `https://studio.highflame.ai/api/cli-auth/token` |
+| **Token Endpoint** (SaaS) | `https://auth.highflame.ai/oauth2/token` |
 | **Shield Endpoint** (self-hosted) | Your Shield base URL |
-| **Token Endpoint** (self-hosted) | Your Studio `/api/cli-auth/token` URL |
+| **Token Endpoint** (self-hosted) | Your AuthN issuer URL + `/oauth2/token` (not your Studio URL) |
 | **Safari enablement** | Safari → Settings → Extensions → on, with website access |
 
 ---
