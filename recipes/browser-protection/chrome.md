@@ -74,6 +74,8 @@ https://auth.highflame.ai/oauth2/token
 
 Click **Save**.
 
+If an older setup saved Studio's token URL (`https://studio.highflame.ai/api/cli-auth/token`), the extension replaces it with the AuthN URL above on its own. A token URL on a self-hosted Studio is not replaced: change it to your AuthN URL plus `/oauth2/token`, or the extension cannot get a token.
+
 On success the popup shows **Saved successfully**, and the red banner on the main
 view clears.
 
