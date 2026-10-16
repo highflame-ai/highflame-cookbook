@@ -13,7 +13,7 @@ from __future__ import annotations
 import os
 import sys
 
-from mode_a_firehog_upstream import highflame_completion
+from mode_a_firehog_upstream import highflame_completion, is_blocked
 
 BENIGN = "Reply with exactly the word: pong"
 ATTACK = (
@@ -27,23 +27,30 @@ def main() -> int:
         print("SKIP: HIGHFLAME_API_KEY / OPENAI_API_KEY not set.")
         return 2
 
-    # 1) benign must succeed
+    # 1) benign must succeed. A refusal is an ordinary completion, so check for it explicitly.
     try:
         resp = highflame_completion(BENIGN)
         content = resp.choices[0].message.content
+        if is_blocked(resp):
+            print(f"FAIL benign prompt was blocked by policy: {content!r}")
+            return 1
         assert content and content.strip(), "benign prompt returned empty content"
         print(f"PASS benign -> {content.strip()!r}")
     except Exception as exc:  # noqa: BLE001
-        print(f"FAIL benign prompt was blocked or errored: {exc}")
+        print(f"FAIL benign prompt errored: {exc}")
         return 1
 
     # 2) injection should be blocked when enforce-mode policies are active.
     try:
-        highflame_completion(ATTACK)
-        print("WARN injection was NOT blocked — are your policies in enforce mode?")
+        resp = highflame_completion(ATTACK)
+    except Exception as exc:  # noqa: BLE001 — an error is not a block: the gateway refuses with a 200
+        print(f"FAIL injection request errored: {exc}")
+        return 1
+    if is_blocked(resp):
+        print(f"PASS injection blocked by policy: {resp.choices[0].message.content[:100]!r}")
+    else:
         # Not a hard failure: a tenant may intentionally run monitor mode.
-    except Exception as exc:  # noqa: BLE001 — a block is the expected/healthy outcome
-        print(f"PASS injection blocked by policy: {exc}")
+        print("WARN injection was NOT blocked — are your policies in enforce mode?")
 
     return 0
 
