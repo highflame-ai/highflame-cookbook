@@ -217,8 +217,11 @@ hooks back:
 overwatch install codex --yes           # or: overwatch install claudecode --yes
 ```
 
-`overwatch gateway disable <agent>` restores the configuration without reinstalling hooks,
-which leaves that agent unwatched. Prefer `install` unless you intend that.
+On Overwatch 2.1.0 and later, `overwatch gateway disable <agent>` also works: it restores the
+configuration and puts back the hooks that `enable` removed, unless you ran `overwatch uninstall`
+for that agent in between. An agent that had no hooks stays unwatched, and `disable` says how to
+turn monitoring on. An agent routed through the gateway before 2.1.0 needs
+`overwatch install <agent>` once to get its hooks back.
 
 ---
 
