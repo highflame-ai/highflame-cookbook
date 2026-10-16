@@ -69,10 +69,12 @@ Shield Endpoint:
 https://api.highflame.ai
 
 Token Endpoint:
-https://studio.highflame.ai/api/cli-auth/token
+https://auth.highflame.ai/oauth2/token
 ```
 
 Click **Save**.
+
+If an older setup saved a Highflame-hosted Studio token URL (`https://studio.highflame.ai/api/cli-auth/token`, or the dev and local equivalents), the extension replaces it with the matching AuthN URL on its own. A token URL on a self-hosted Studio is not replaced: change it to your AuthN URL plus `/oauth2/token`, or the extension cannot get a token.
 
 On success the popup shows **Saved successfully**, and the red banner on the main
 view clears.
@@ -107,9 +109,9 @@ After that, check whether the session is visible.
 | --- | --- |
 | **API Key** | Studio service key (`zid_sk_…`) |
 | **Shield Endpoint** (SaaS) | `https://api.highflame.ai` |
-| **Token Endpoint** (SaaS) | `https://studio.highflame.ai/api/cli-auth/token` |
+| **Token Endpoint** (SaaS) | `https://auth.highflame.ai/oauth2/token` |
 | **Shield Endpoint** (self-hosted) | Your Shield base URL |
-| **Token Endpoint** (self-hosted) | Your Studio `/api/cli-auth/token` URL |
+| **Token Endpoint** (self-hosted) | Your AuthN issuer URL + `/oauth2/token` (not your Studio URL) |
 
 ---
 
