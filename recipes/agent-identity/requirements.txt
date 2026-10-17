@@ -1,6 +1,6 @@
 highflame[strands,langgraph]>=0.6.0
 # Strands notebooks
-strands-agents[a2a]>=1.54      # [a2a] adds the A2A server/client used by the swarm notebook
+strands-agents[a2a]>=1.54      # [a2a] adds the A2A server/client used by the swarm notebook. HighflameIntervention needs >=1.43
 boto3>=1.43                    # Amazon Bedrock
 # LangGraph notebook. langchain and langgraph themselves come from the [langgraph] extra.
 langchain>=1.0                 # HighflameMiddleware imports the umbrella package
