@@ -96,11 +96,15 @@ deployment.
    the attempt through and a step built on it demonstrates nothing.
 3. **Allow-list what the agent may do.** Open the identity in Studio's Registry, go to
    its **Policies** page, switch **Access** to **Enforcing**, and add two grants: **Send prompts →
-   Allow all**, and **Call tool →** `lookup_order`, `search_kb`, `ask_orders_specialist`,
+   Allow** with an expiry date past your last planned run, and **Call tool →** `lookup_order`, `search_kb`, `ask_orders_specialist`,
    `ask_kb_specialist` (leave the MCP server field empty — these are local tools). Every action is
    locked once enforcement is on, so this ledger is the complete list of what the agent may do;
    `delete_order` is deliberately not on it, and that is what refuses it in the authorization step.
-   Send prompts is the grant people forget: without it the first turn is refused. Only this agent
+   Send prompts is the grant people forget: without it the first turn is refused. Studio refuses a
+   Send prompts allow with no expiry or condition, because it would allow every prompt; once the
+   expiry passes, every prompt is refused again.
+   It also warns that with no **Connect to MCP server** rule no MCP server can be opened; these
+   notebooks use only local tools, so leave that rule out. Only this agent
    is switched to Enforcing; the specialists registered from code keep the default Access
    setting, so they are unaffected. Skip this step and the authorization cell reports the other
    state honestly — the tool ran, and it says so. In the Strands Swarm notebook the Studio identity

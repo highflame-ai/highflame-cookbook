@@ -1,4 +1,4 @@
-highflame[strands,langgraph]>=0.3.25
+highflame[strands,langgraph]>=0.6.0
 # Strands notebooks
 strands-agents[a2a]>=1.54      # [a2a] adds the A2A server/client used by the swarm notebook
 boto3>=1.43                    # Amazon Bedrock
