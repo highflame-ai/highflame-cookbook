@@ -148,7 +148,7 @@ inside your own network, which is what makes the recipe work with no internet ac
 - *Optional:* an S3 bucket for `SESSION_BUCKET`, to persist the multi-agent conversation
   under the same id Highflame uses for its decisions.
 
-## Four notebooks
+## Five notebooks
 
 | Notebook | Toolkit | Pattern | What it adds |
 | --- | --- | --- | --- |
@@ -156,9 +156,10 @@ inside your own network, which is what makes the recipe work with no internet ac
 | [`langgraph_gateway_agent_identity.ipynb`](langgraph_gateway_agent_identity.ipynb) | LangGraph + AI gateway | The same two patterns, with every model call routed through the Highflame AI gateway | No Highflame code in the agent. The gateway checks the prompt, each tool call, each tool result and the reply, and the model call itself; each specialist presents its delegated credential to the gateway, so attribution stays exact |
 | [`strands_bedrock_agent_identity.ipynb`](strands_bedrock_agent_identity.ipynb) | Strands | `langgraph_agent_identity`, section for section, on Amazon Bedrock with Strands hooks | The same Studio identity and setup. Per-agent IAM roles, so CloudTrail attributes the model calls to the same agent Highflame does |
 | [`strands_swarm_a2a_agent_identity.ipynb`](strands_swarm_a2a_agent_identity.ipynb) | Strands | A [Swarm](https://strandsagents.com/docs/user-guide/concepts/multi-agent/swarm/) of specialists that hand off to each other, plus a remote agent served over [A2A](https://strandsagents.com/docs/user-guide/concepts/multi-agent/agent-to-agent/) | The Studio identity as team lead, with `refunds:read` added. Hand-offs pass the same hooks as tool calls; the remote agent verifies the caller's Highflame credential at its front door (`401` without one, `403` without the right scope) and runs its own guardrails as itself |
+| [`strands_interventions_and_agent_keys.ipynb`](strands_interventions_and_agent_keys.ipynb) | Strands | One agent under Strands' native `HighflameIntervention`, plus the decisions and key calls of SDK 0.6.0 | A prompt, a tool call and a tool result refused without an exception; a real `defer` returned as a decision (one Cedar policy to paste); `step_up` explained; `agents.update(public_key_pem=...)` gives a keyless agent its delegation key; the person grants `exchange_id_token` and `redeem_id_jag`, which skip on the hosted service |
 
-Read the row that matches your toolkit. The two Strands notebooks are in order: the second assumes
-the first.
+Read the row that matches your toolkit. The Strands notebooks are in order: the second and third
+assume the first.
 
 ## Run the proof
 
@@ -169,7 +170,7 @@ cp .env.example .env            # a model credential: OPENAI_API_KEY, or the gat
                                 # HIGHFLAME_API_KEY when unset, so the key stays out of its saved
                                 # output; set it here to skip the prompt.
 pip install -r requirements.txt
-jupyter lab                     # open any of the four notebooks
+jupyter lab                     # open any of the five notebooks
 ```
 
 Run the cells top to bottom. What you'll see:
@@ -196,7 +197,7 @@ The A2A server in the second notebook listens on `127.0.0.1:9910`; set `A2A_PORT
 The smoke test covers the Highflame half without AWS:
 
 ```bash
-python smoke_test.py            # registers, delegates, guards, verifies, cleans up
+python smoke_test.py            # registers, delegates, guards, verifies, sets a key, cleans up
 ```
 
 ## Notes

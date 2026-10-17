@@ -1,8 +1,9 @@
 """Smoke test for the agent-identity recipe: no AWS needed, only HIGHFLAME_API_KEY.
 
 Registers a throwaway orchestrator and specialist, guards a prompt as the specialist
-under a delegated credential, checks the credential both ways, deactivates the
-orchestrator and confirms the delegated credential is then refused, and cleans up.
+under a delegated credential, checks the credential both ways, gives a keyless agent its key with
+agents.update() and signs it in with that key, deactivates the orchestrator and
+confirms the delegated credential is then refused, and cleans up.
 Exit 0 on success, 1 on failure, 2 when the key is absent (skip).
 
 The static checks at the top need no credentials, so they run on every PR even
@@ -83,12 +84,26 @@ def _static_checks() -> None:
         "so an operator's revocation is visible in the logs (sdk#162)."
     )
 
-    # The floor has to carry verify_active() and the actor-chain readers, or the
-    # notebooks import a version without them and fail at runtime, not install time.
+    # The floor has to carry the calls the notebooks make, or they import a
+    # version without them and fail at runtime instead of at install time.
+    # 0.6.0 adds current_actor() and prior_actors(), HighflameIntervention,
+    # agents.update(public_key_pem=...) and the person grants.
     reqs = (RECIPE_DIR / "requirements.txt").read_text(encoding="utf-8")
     assert "highflame[strands,langgraph]>=0.6.0" in reqs, (
-        "the highflame floor must be at least 0.6.0, which the notebooks' "
-        "current_actor() and prior_actors() calls were checked against"
+        "the highflame floor must be at least 0.6.0: the notebooks call "
+        "current_actor(), prior_actors() and HighflameIntervention"
+    )
+
+    # From 0.6.0 step_up and defer come back as decisions, not errors. A gate on
+    # `denied` alone lets them through, so the interventions notebook, which
+    # teaches the branch, must not gate on it.
+    interventions = _notebook_code(RECIPE_DIR / "strands_interventions_and_agent_keys.ipynb")
+    assert "interventions=[HighflameIntervention(" in interventions, (
+        "the interventions notebook no longer builds its agent with HighflameIntervention"
+    )
+    assert "if resp.denied" not in interventions and "if not resp.denied" not in interventions, (
+        "the interventions notebook gates on resp.denied, which lets step_up and defer through. "
+        "Gate on resp.allowed."
     )
 
     # The LangGraph notebook used to claim a deactivated agent's issued
@@ -100,7 +115,7 @@ def _static_checks() -> None:
         "Deactivation cascade-revokes them immediately."
     )
 
-    print("OK: static checks passed (trust-boundary call, version floor, revocation claim)")
+    print("OK: static checks passed (trust-boundary call, version floor, revocation claim, allowed gate)")
 
 
 try:
@@ -120,13 +135,18 @@ if not api_key:
 
 from highflame import Highflame
 from highflame.zeroid import ToolScope, generate_keypair
+from highflame.zeroid.assertions import build_actor_assertion
 from highflame.zeroid.errors import TokenRevokedError
 
 # Imported, not used: this is what makes CI fail when the LangGraph notebook's
 # dependencies break, since CI runs this file and never runs the notebooks.
 from highflame.integrations.langgraph import HighflameMiddleware  # noqa: F401
+from highflame.integrations.strands import HighflameIntervention
 
 admin = Highflame(api_key=api_key)
+# Built, not used: it raises ImportError when Strands has no interventions API,
+# which the interventions notebook needs and a bare import does not check.
+HighflameIntervention(admin)
 run_id = uuid.uuid4().hex[:6]
 common = dict(
     identity_type="agent",
@@ -180,6 +200,25 @@ try:
     print(
         f"OK: decision={decision.decision} attributed to {attributed}, acting as {verified.current_actor()}, prior actors {verified.prior_actors()}"
     )
+
+    # SDK 0.6.0: an admin key with nhi:manage gives a keyless agent its
+    # delegation key, and the agent can then authenticate with it (jwt-bearer).
+    keyless = admin.agents.register(
+        name="Smoke Keyless", external_id=f"smoke-keyless-{run_id}", sub_type="tool_agent", **common
+    )
+    created.append(keyless.agent.id)
+    keyless_private, keyless_public = generate_keypair()
+    admin.agents.update(keyless.agent.id, public_key_pem=keyless_public)
+    bearer = admin.tokens.issue_jwt_bearer(
+        build_actor_assertion(
+            wimse_uri=keyless.agent.wimse_uri,
+            private_key_pem=keyless_private,
+            audience=admin.whoami()["issuer"],
+        )
+    )
+    signed_in_as = admin.tokens.verify(bearer.access_token).external_id
+    assert signed_in_as == keyless.agent.external_id, f"jwt-bearer token names {signed_in_as!r}"
+    print(f"OK: agents.update(public_key_pem=...) let {signed_in_as} authenticate with its own key")
 
     # sdk#162: deactivating the orchestrator must kill the credential it
     # delegated, and both enforcement points must agree that it is dead.

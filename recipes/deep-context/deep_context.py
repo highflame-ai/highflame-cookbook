@@ -111,6 +111,10 @@ def _as_int(ctx: dict[str, Any], key: str) -> int:
         return 0
 
 
+# The decisions that let a turn proceed. Everything else (deny, step_up, defer) stops it.
+_PROCEED = ("allow", "modify")
+
+
 @dataclass
 class TurnResult:
     """One guard evaluation, flattened to the fields this recipe talks about."""
@@ -147,19 +151,20 @@ class TurnResult:
 
     @property
     def blocked(self) -> bool:
-        """True when the policy set said no.
+        """True when the policy set did not let the turn proceed: deny, or a
+        suspended step_up or defer, which SDK 0.6.0 returns instead of raising.
 
         Reads ``actual_decision`` when present, not ``decision``: a policy in
         monitor mode returns decision="allow" with actual_decision="deny", and
         reading only ``decision`` is the standard way to conclude "nothing
         fired" when in fact everything fired and nothing was enforced.
         """
-        return (self.actual_decision or self.decision) == "deny"
+        return (self.actual_decision or self.decision) not in _PROCEED
 
     @property
     def enforced(self) -> bool:
         """True when the block was actually applied rather than just logged."""
-        return self.decision == "deny"
+        return self.decision not in _PROCEED
 
     @property
     def divergence(self) -> int:
