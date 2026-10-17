@@ -83,12 +83,12 @@ def _static_checks() -> None:
         "so an operator's revocation is visible in the logs (sdk#162)."
     )
 
-    # The floor has to carry verify_active(), or the notebooks import a version
-    # without it and fail at runtime instead of at install time.
+    # The floor has to carry verify_active() and the actor-chain readers, or the
+    # notebooks import a version without them and fail at runtime, not install time.
     reqs = (RECIPE_DIR / "requirements.txt").read_text(encoding="utf-8")
-    assert "highflame[strands,langgraph]>=0.3.25" in reqs, (
-        "the highflame floor must be at least 0.3.25 — the release that adds "
-        "tokens.verify_active()"
+    assert "highflame[strands,langgraph]>=0.6.0" in reqs, (
+        "the highflame floor must be at least 0.6.0, which the notebooks' "
+        "current_actor() and prior_actors() calls were checked against"
     )
 
     # The LangGraph notebook used to claim a deactivated agent's issued
@@ -165,6 +165,7 @@ try:
     verified = orchestrator_client.tokens.verify(delegated.access_token)
     assert verified.is_delegated(), "credential is not marked as delegated"
     assert verified.external_id == specialist.agent.external_id, "credential names the wrong agent"
+    assert verified.current_actor() == specialist.agent.wimse_uri, "the specialist is not the acting party"
 
     decision = Highflame(access_token=delegated.access_token).guard.evaluate_prompt(
         "What's the status of order 1042?", session_id=f"smoke-{run_id}"
@@ -177,7 +178,7 @@ try:
     assert active.jti == verified.jti, "verify_active() named a different credential"
 
     print(
-        f"OK: decision={decision.decision} attributed to {attributed}, delegated by {verified.delegated_by()}"
+        f"OK: decision={decision.decision} attributed to {attributed}, acting as {verified.current_actor()}, prior actors {verified.prior_actors()}"
     )
 
     # sdk#162: deactivating the orchestrator must kill the credential it
