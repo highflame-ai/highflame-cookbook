@@ -29,7 +29,8 @@ from common import claims, okta_error, okta_metadata, okta_token_request, save_t
 SIGNIN_SCOPE = "openid email profile offline_access"
 
 
-def main() -> int:
+def sign_in(open_browser: bool = True) -> str | None:
+    """Sign the person in, save their tokens, and return their ID token (None on failure)."""
     redirect_uri = setting("OKTA_REDIRECT_URI", "http://localhost:8765/callback")
     callback = urlparse(redirect_uri)
     verifier = secrets.token_urlsafe(48)
@@ -77,7 +78,8 @@ def main() -> int:
     server = HTTPServer((callback.hostname or "localhost", callback.port or 80), Callback)
     server.timeout = 1
     print(f"Sign in as the person in your browser. If it does not open, go to:\n\n  {authorize_url}\n")
-    webbrowser.open(authorize_url)
+    if open_browser:
+        webbrowser.open(authorize_url)
     deadline = time.time() + 300
     while not outcome and time.time() < deadline:
         server.handle_request()
@@ -85,10 +87,17 @@ def main() -> int:
 
     if "id_token" not in outcome:
         print(f"Sign-in failed: {outcome.get('error', 'no redirect within 5 minutes')}")
+        return None
+    print(f"Signed in. Refresh token saved: {outcome['refresh_token']}")
+    return outcome["id_token"]
+
+
+def main() -> int:
+    id_token = sign_in()
+    if not id_token:
         return 1
-    show_claims("Signed in. The person's ID token, from Okta:", outcome["id_token"],
+    show_claims("The person's ID token, from Okta:", id_token,
                 ["iss", "sub", "aud", "email", "email_verified"])
-    print(f"  refresh token    {outcome['refresh_token']}")
     print("\nSaved to .tokens/. Next: python id_token_flow.py, or python id_jag_flow.py")
     return 0
 

@@ -25,6 +25,23 @@ There are two flows. Use the one that fits how your organization governs agents:
 In both flows the agent signs its request to Highflame with its own **delegation key**.
 Highflame issues no client secret.
 
+### The full example: a Strands agent on Amazon Bedrock AgentCore
+
+[`strands_agentcore_id_token.ipynb`](strands_agentcore_id_token.ipynb) builds on flow 1. Its agent,
+[`agent_app.py`](agent_app.py), is a Strands agent packaged as an AgentCore app. AgentCore
+validates the person's Okta ID token and passes it to the agent. The agent exchanges it for one
+Highflame token per gateway, and sends all its traffic through Highflame:
+
+- **the model calls** through the Highflame LLM gateway, which records each call and checks every
+  tool call the model makes, before the agent runs it;
+- **the tool calls** through the Highflame MCP gateway, which calls each MCP server with the
+  person's own connection.
+
+The notebook runs the agent on your machine first, then shows the commands that deploy it to
+AgentCore, and one gateway policy for a single person that applies on both paths. It also needs
+AWS Bedrock configured under Studio → **AI Gateway** → **LLM Providers**, and AWS credentials
+that may call the model.
+
 ### Flow 1: the ID token
 
 ```mermaid

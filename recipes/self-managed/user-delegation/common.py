@@ -120,20 +120,29 @@ def read_token(name: str) -> str | None:
     return path.read_text().strip() if path.exists() else None
 
 
-def fresh_id_token() -> str:
-    """The person's ID token, refreshed with their refresh token when it is too old to use."""
+def saved_id_token() -> str | None:
+    """The person's saved ID token, refreshed with their refresh token when it is too old
+    to use. None when there is no usable sign-in: then the person signs in again."""
     id_token = read_token("id_token")
     if id_token and time.time() - claims(id_token).get("iat", 0) < ID_TOKEN_REUSE_SECONDS:
         return id_token
     refresh_token = read_token("refresh_token")
     if not refresh_token:
-        sys.exit("No usable ID token and no refresh token. Run `python signin.py` first.")
+        return None
     resp = okta_token_request({"grant_type": "refresh_token", "refresh_token": refresh_token})
     if resp.is_error or "id_token" not in resp.json():
-        sys.exit(f"Okta did not refresh the sign-in ({okta_error(resp)}). "
-                 "Run `python signin.py` again.")
+        print(f"Okta did not refresh the saved sign-in ({okta_error(resp)}).")
+        return None
     save_tokens(resp.json())
     return resp.json()["id_token"]
+
+
+def fresh_id_token() -> str:
+    """The person's ID token, for the scripts: the saved sign-in, else stop."""
+    id_token = saved_id_token()
+    if not id_token:
+        sys.exit("No usable sign-in. Run `python signin.py` first.")
+    return id_token
 
 
 # --- Highflame -----------------------------------------------------------------
@@ -182,19 +191,46 @@ def show_claims(title: str, token: str, names: list[str]) -> dict:
     return c
 
 
-def list_mcp_tools(url: str, token: str) -> list[str]:
-    """initialize, then tools/list, on an MCP server (streamable HTTP) with a bearer token."""
-    headers = {"Content-Type": "application/json", "Accept": "application/json, text/event-stream",
-               "Authorization": f"Bearer {token}"}
+class McpHttpError(Exception):
+    """The gateway or the MCP server refused a request at the HTTP level."""
 
-    def rpc(http: httpx.Client, payload: dict) -> httpx.Response:
-        resp = http.post(url, headers=headers, json=payload)
+    def __init__(self, method: str, resp: httpx.Response):
+        self.status = resp.status_code
+        self.body = resp.headers.get("www-authenticate") or resp.text[:500]
+        super().__init__(f"The MCP server answered {self.status} to {method}: {self.body}")
+
+
+class McpSession:
+    """A minimal MCP client (streamable HTTP) that sends a bearer token on every request."""
+
+    def __init__(self, url: str, token: str):
+        self.url = url
+        self.headers = {"Content-Type": "application/json",
+                        "Accept": "application/json, text/event-stream",
+                        "Authorization": f"Bearer {token}"}
+        self.http = httpx.Client(timeout=60)
+        self._next_id = 0
+        resp = self._post("initialize", {
+            "protocolVersion": "2025-11-25", "capabilities": {},
+            "clientInfo": {"name": "highflame-user-delegation-recipe", "version": "1.0"}})
+        if session := resp.headers.get("mcp-session-id"):
+            self.headers["Mcp-Session-Id"] = session
+        self._post("notifications/initialized", None)
+
+    def _post(self, method: str, params: dict | None) -> httpx.Response:
+        payload: dict = {"jsonrpc": "2.0", "method": method}
+        if not method.startswith("notifications/"):
+            self._next_id += 1
+            payload["id"] = self._next_id
+        if params is not None:
+            payload["params"] = params
+        resp = self.http.post(self.url, headers=self.headers, json=payload)
         if resp.is_error:
-            sys.exit(f"The MCP server answered {resp.status_code} to {payload['method']}: "
-                     f"{resp.headers.get('www-authenticate') or resp.text[:300]}")
+            raise McpHttpError(method, resp)
         return resp
 
-    def result(resp: httpx.Response) -> dict:
+    @staticmethod
+    def _result(resp: httpx.Response) -> dict:
         if resp.headers.get("content-type", "").startswith("text/event-stream"):
             for line in resp.text.splitlines():
                 if line.startswith("data:"):
@@ -202,12 +238,26 @@ def list_mcp_tools(url: str, token: str) -> list[str]:
             return {}
         return resp.json().get("result") or {}
 
-    with httpx.Client(timeout=60) as http:
-        resp = rpc(http, {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {
-            "protocolVersion": "2025-11-25", "capabilities": {},
-            "clientInfo": {"name": "highflame-user-delegation-recipe", "version": "1.0"}}})
-        if session := resp.headers.get("mcp-session-id"):
-            headers["Mcp-Session-Id"] = session
-        rpc(http, {"jsonrpc": "2.0", "method": "notifications/initialized"})
-        tools = result(rpc(http, {"jsonrpc": "2.0", "id": 2, "method": "tools/list"})).get("tools", [])
-        return [t["name"] for t in tools]
+    def list_tools(self) -> list[dict]:
+        return self._result(self._post("tools/list", {})).get("tools", [])
+
+    def call_tool(self, name: str, arguments: dict) -> tuple[bool, str]:
+        """(is_error, the result's text). A gateway policy refusal comes back as is_error."""
+        result = self._result(self._post("tools/call", {"name": name, "arguments": arguments}))
+        text = " ".join(c.get("text", "") for c in result.get("content", []) if c.get("type") == "text")
+        return bool(result.get("isError")), text
+
+    def close(self) -> None:
+        self.http.close()
+
+
+def list_mcp_tools(url: str, token: str) -> list[str]:
+    """initialize, then tools/list, on an MCP server (streamable HTTP) with a bearer token."""
+    try:
+        session = McpSession(url, token)
+        try:
+            return [t["name"] for t in session.list_tools()]
+        finally:
+            session.close()
+    except McpHttpError as e:
+        sys.exit(str(e))
