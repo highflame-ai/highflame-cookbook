@@ -14,4 +14,4 @@ They use features that a customer-managed deployment turns on:
 
 | Recipe | What it shows | Format |
 | --- | --- | --- |
-| [User delegation](user-delegation/) | An agent acts for a person signed in with Okta: their ID token, or an Okta ID-JAG, for a Highflame token. The full example is a Strands agent on Amazon Bedrock AgentCore, behind the Highflame LLM and MCP gateways, with gateway policies for one person. | Notebook and Python scripts |
+| [User delegation](user-delegation/) | An agent acts for a person signed in with Okta: their ID token, or an Okta ID-JAG, for a Highflame token. The full example is a Strands agent on Amazon Bedrock AgentCore, behind the Highflame LLM and MCP gateways, with a gateway policy that blocks a tool on both paths. | Notebook and Python scripts |

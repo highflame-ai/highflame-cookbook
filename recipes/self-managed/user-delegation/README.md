@@ -38,7 +38,7 @@ Highflame token per gateway, and sends all its traffic through Highflame:
   person's own connection.
 
 The notebook runs the agent on your machine first, then shows the commands that deploy it to
-AgentCore, and one gateway policy for a single person that applies on both paths. It also needs
+AgentCore, and one gateway policy that blocks a tool on both paths. It also needs
 AWS Bedrock configured under Studio → **AI Gateway** → **LLM Providers**, and AWS credentials
 that may call the model.
 
