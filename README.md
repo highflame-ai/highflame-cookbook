@@ -33,6 +33,7 @@ team already runs AI. Find your row:
 | **Browser AI chat** (ChatGPT, Claude, Gemini…) | [`recipes/browser-protection/`](recipes/browser-protection/) | Install Highflame Browser Security in Chrome, Firefox, or Safari and connect it to Studio | Prompts, pastes, and uploads are checked before they leave the browser |
 | **IDE coding agents** (Cursor, Claude Code, Copilot…) | [`recipes/agent-protection/`](recipes/agent-protection/) | `npm install -g @highflame/overwatch` once | Every coding agent on the machine is monitored |
 | **Multi-turn assistants or agents**, and want guardrails a per-request filter cannot express | [`recipes/deep-context/`](recipes/deep-context/) | Thread one `session_id` through every guard call | Catch crescendo attacks where no single message is alarming; gate a tool call on what the conversation has been doing; attribute every step to an agent *and* a human |
+| **Agents that act for a person** who signed in with Okta | [`recipes/self-managed/user-delegation/`](recipes/self-managed/user-delegation/) | One token request: the person's ID token, or an Okta ID-JAG, for a Highflame token | Each MCP call is attributed to the person *and* the agent, and limited by the agent's credential policy |
 | **The OpenAI SDK / LangChain** from scratch | _coming soon_ | Point your base URL at Highflame | Policy enforcement + observability, zero instrumentation |
 | **Your own agents / framework** | _coming soon_ | A guard call + a per-agent identity | Inline guardrails and per-agent identity |
 
@@ -66,6 +67,7 @@ a real key.
 | [**Browser protection**](recipes/browser-protection/) | Connect Highflame Browser Security in Chrome, Firefox, or Safari | Reference docs | ✅ ready |
 | [**Agent protection**](recipes/agent-protection/) | Connect Overwatch (`@highflame/overwatch` on npm); one install monitors every coding agent | Reference docs | ✅ ready |
 | [**Multi-turn guardrails**](recipes/deep-context/) | Stop crescendo attacks no single message reveals; gate tool calls on conversation history; attribute every step to agent *and* human | Marimo notebook + Cedar policies | ✅ ready |
+| [**User delegation**](recipes/self-managed/user-delegation/) | An agent acts for a person signed in with Okta, with an ID token or an ID-JAG (Cross App Access). Customer-managed deployments only. | Notebook and Python scripts | ✅ ready |
 | OpenAI SDK / LangChain (greenfield) | New projects | — | coming soon |
 | Portkey | Teams on Portkey | — | coming soon |
 

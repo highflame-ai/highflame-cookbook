@@ -1,0 +1,4 @@
+# The person's saved tokens and your keys stay on your machine.
+.tokens/
+*.pem
+.env
