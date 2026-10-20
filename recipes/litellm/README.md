@@ -121,8 +121,9 @@ resp = litellm.completion(
 )
 ```
 
-A policy **deny** surfaces as an HTTP error from the gateway, which LiteLLM raises as an
-exception — the demo catches it and shows the policy reason.
+A policy **deny** is not an HTTP error. The gateway answers with an ordinary completion, so your
+client keeps working: its `id` starts with `chatcmpl-blocked-` and its text names the policy. Check
+the `id`, as the demo's `is_blocked()` does, rather than waiting for an exception.
 
 ---
 
