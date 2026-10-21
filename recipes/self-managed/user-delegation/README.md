@@ -39,8 +39,17 @@ Highflame token per gateway, and sends all its traffic through Highflame:
 
 The notebook runs the agent on your machine first, then shows the commands that deploy it to
 AgentCore, and one gateway policy that blocks a tool on both paths. It also needs
-AWS Bedrock configured under Studio → **AI Gateway** → **LLM Providers**, and AWS credentials
-that may call the model.
+AWS Bedrock turned on under Studio → **AI Gateway** → **LLM Providers** (it is on by default), and
+AWS credentials that may call the model.
+
+### Without the MCP gateway: tool calls governed at the LLM gateway
+
+[`strands_direct_mcp_llm_gateway.ipynb`](strands_direct_mcp_llm_gateway.ipynb) is for an agent that
+calls its MCP servers directly, and sends only its model calls through Highflame. The MCP server
+does not need to be registered in Highflame. The LLM gateway sees each tool call the model asks
+for: it records the call for the person and the agent, and a gateway policy can refuse it before
+the agent runs it. The notebook uses a small example MCP server,
+[`example_mcp_server.py`](example_mcp_server.py), that runs on your machine.
 
 ### Flow 1: the ID token
 
@@ -114,9 +123,13 @@ Do these steps once, in Highflame Studio.
    small Okta app that this test sign-in needs. Agents cannot act for people through the
    issuer until it is verified.
 3. **Give the agent a credential policy.** Go to Registry → Authorization → **Credential
-   Policies** → Create Policy. List the scopes the agent may get for a person, for example
-   `tools:read`. Then register the agent with that policy: Registry → Agents →
-   **Inventory** → Register Identity.
+   Policies** → Create Policy.
+   - Under **Allowed grant types**, turn on **Token Exchange** for flow 1, and **JWT Bearer**
+     for flow 2. A new policy allows only **API Key** and **Client Credentials**.
+   - List the scopes the agent may get for a person, for example `tools:read`.
+
+   Then register the agent with that policy: Registry → Agents → **Inventory** → Register
+   Identity.
 4. **Add the agent's delegation key.** Make an EC P-256 key pair:
 
    ```bash
@@ -241,7 +254,8 @@ Run `python smoke_test.py` to run both flows again with the saved sign-in.
 | What you see | Why | What to do |
 |---|---|---|
 | `invalid_grant: the person is not a member of this organization` | Highflame did not find exactly one member with this email on a claimed domain, or the email is not trusted. | Make sure the person is a member with the same email as in Okta, and that the domain is claimed. Turn on **Trust this directory's email addresses** on the issuer. |
-| `policy_violation` | The agent asked for a scope that its credential policy does not allow. | Add the scope to the credential policy, or ask for less with `SCOPE`. |
+| `policy_violation: … grant type "token_exchange" is not permitted` (or `"jwt_bearer"`) | The agent's credential policy does not allow the flow's grant type. | On the credential policy, turn on **Token Exchange** (flow 1) or **JWT Bearer** (flow 2). |
+| `policy_violation` about a scope | The agent asked for a scope that its credential policy does not allow. | Add the scope to the credential policy, or ask for less with `SCOPE`. |
 | `invalid_client` from Highflame | The request is not signed with the key on the agent, or the agent has no OAuth client for this Okta app. | Check `AGENT_PRIVATE_KEY_PATH` against the agent's **Delegation key**. Check the **IdP sign-in link**, with **Create the agent's OAuth client** on. |
 | `the ID-JAG has no resource claim and the request names no resource` | The agent did not name the MCP server. | Set `MCP_SERVER_URL`. |
 | Okta: `invalid_target` | The agent sent `resource` to Okta, and the Okta connection has no resource indicator. | Do not send `resource` to Okta. Name the MCP server at Highflame, as `id_jag_flow.py` does. |

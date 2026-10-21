@@ -2,3 +2,5 @@
 .tokens/
 *.pem
 .env
+# The clean build folder of the AgentCore deploy (Part D of the AgentCore notebook).
+agentcore_build/
