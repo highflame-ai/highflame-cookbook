@@ -218,6 +218,10 @@ python smoke_test.py            # registers, delegates, guards, verifies, sets a
   `InvalidUpdateError: Expected dict, got <coroutine object>` and guarded nothing, see
   highflame-ai/highflame-sdk#161). The synchronous ones make blocking calls, so use
   `ainvoke` from an async service and inside a notebook, where a loop is already running.
+- **List `HighflameMiddleware` last.** With other LangGraph middleware, put it last in
+  `middleware=[...]` so retry and fallback middleware wrap it and each model call is checked under
+  the model that actually runs (this matters from `highflame` 0.8, where the guards run inside the
+  model call).
 - **Cost in an agent loop.** A turn that uses one tool calls the model twice, so the prompt is
   evaluated twice. Pass `optimize=True` to the middleware or hooks to run only the detectors your
   active policies reference. The notebooks leave it off so every detector shows up in the
