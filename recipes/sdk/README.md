@@ -51,10 +51,15 @@ cp .env.example .env
 Open `.env` and set:
 
 ```
-HIGHFLAME_API_KEY=hf_sk_your_key_here
+HIGHFLAME_API_KEY=zid_sk_your_key_here
 ```
 
-For self-hosted Shield, also set `HIGHFLAME_BASE_URL=http://localhost:8080`.
+For another deployment (self-hosted, local dev), set both URLs. The token URL is not derived from the base URL, so setting only `HIGHFLAME_BASE_URL` sends your key to the SaaS token endpoint, and the exchange fails:
+
+```
+HIGHFLAME_BASE_URL=http://localhost:8070                    # Shield
+HIGHFLAME_TOKEN_URL=http://localhost:8051/oauth2/token      # AuthN
+```
 
 ### Run a notebook
 
@@ -93,8 +98,9 @@ Cells are independent: skip any cell that requires setup you don't have
 from highflame import Highflame, Shield, BlockedError
 
 client = Highflame(
-    api_key="hf_sk_...",
-    base_url="https://api.highflame.ai",  # or self-hosted URL
+    api_key="zid_sk_...",
+    base_url="https://api.highflame.ai",  # or self-hosted Shield URL
+    token_url="https://auth.highflame.ai/oauth2/token",  # or self-hosted AuthN + /oauth2/token
 )
 ```
 
