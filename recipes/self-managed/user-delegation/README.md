@@ -51,6 +51,45 @@ for: it records the call for the person and the agent, and a gateway policy can 
 the agent runs it. The notebook uses a small example MCP server,
 [`example_mcp_server.py`](example_mcp_server.py), that runs on your machine.
 
+In both notebooks above, the agent calls Highflame itself, with the Highflame SDK and a
+private key the agent holds. The section below is the other AgentCore setup: AWS performs
+the exchange, and the agent has no Highflame SDK and no Highflame key.
+
+### AgentCore performs the exchange
+
+Use this when the person calls an AgentCore runtime with their Okta ID token and the agent
+should not talk to Highflame's token endpoint itself.
+
+1. The runtime's JWT authorizer checks the person's Okta ID token.
+2. The agent asks AWS for a Highflame token with
+   `@requires_access_token(auth_flow="ON_BEHALF_OF_TOKEN_EXCHANGE", resources=[gateway URL])`.
+3. AgentCore sends the person's ID token to Highflame. The client is the agent's Okta app.
+   AWS signs that client assertion with a KMS key (`private_key_jwt`). No client secret is stored.
+4. Highflame returns a token with `sub` = the person, `act.sub` = the agent, and `aud` = the gateway.
+5. The agent calls the MCP gateway with `Authorization: Bearer <that token>`. It calls the LLM
+   gateway with the Bedrock credential in `Authorization` and the same style of Highflame token
+   in `x-highflame-token`, raw, with no `Bearer` prefix.
+
+Register the agent before any token is issued. Discovery's AWS connector lists the runtime.
+Adopt it in Studio. Policies attach to that adopted identity. Then do
+[Set it up in Highflame](#set-it-up-in-highflame), with two differences:
+
+- **Delegation key.** Paste the public half of the KMS key AWS uses to sign the assertion.
+  The agent does not hold the private key, and it does not go in Secrets Manager.
+- **Okta link.** Link the agent to the Okta app in the ID token's `aud`.
+
+In AgentCore, add one credential provider: **CustomOauth2**, with the discovery URL of your
+Highflame authorization server (AuthN's `HIGHFLAME_ISSUER`).
+
+On the Highflame deployment, set Firehog `HIGHFLAME_JWT_ISSUER` to that same issuer and
+nothing else. The image default `highflame-admin`, or a comma-separated list, rejects the
+token. This needs ZeroID v1.23.1 or later, which accepts AWS's generic subject-token type.
+The matching AuthN release has to be on that deployment too.
+
+This is the path to repeat for a production tenant. It is not the zero-code path, where no
+one registers a key and agents are adopted once per AWS account. That path is not available
+to deploy yet.
+
 ### Flow 1: the ID token
 
 ```mermaid
@@ -262,3 +301,5 @@ Run `python smoke_test.py` to run both flows again with the saved sign-in.
 | Okta refuses the ID-JAG request | The agent is not an AI agent with a connection to the Highflame instance, or callers cannot use Cross App Access. | Do the steps in [The connection to Highflame](#the-connection-to-highflame-flow-2-only) again. |
 | Highflame refuses an ID-JAG that has a `resource` claim | The Okta connection sets a resource indicator that is not `MCP_SERVER_URL`. | Set the resource indicator to `MCP_SERVER_URL`, or remove it. |
 | The MCP server answers `401` | The token is bound to another URL. | Use the same URL for `MCP_SERVER_URL` and for the MCP calls. |
+| Firehog answers `401` and the configured issuer is `highflame-admin`, or a comma-separated list | Firehog compares the token's `iss` to the whole `HIGHFLAME_JWT_ISSUER` value. The default and a list both fail that check. | Set `HIGHFLAME_JWT_ISSUER` to AuthN's `HIGHFLAME_ISSUER` only. |
+| The LLM call is unauthenticated, or the model provider rejects the bearer | The Highflame token was sent in `Authorization`, which on the LLM path is the provider credential. | Send the raw Highflame JWT in `x-highflame-token`, with no `Bearer` prefix. Leave `Authorization` for the Bedrock or other provider credential. |
