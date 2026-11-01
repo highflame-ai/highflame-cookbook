@@ -68,7 +68,7 @@ a real key.
 | [**Browser protection**](recipes/browser-protection/) | Connect Highflame Browser Security in Chrome, Firefox, or Safari | Reference docs | ✅ ready |
 | [**Agent protection**](recipes/agent-protection/) | Connect Overwatch (`@highflame/overwatch` on npm); one install monitors every coding agent | Reference docs | ✅ ready |
 | [**Multi-turn guardrails**](recipes/deep-context/) | Stop crescendo attacks no single message reveals; gate tool calls on conversation history; attribute every step to agent *and* human | Marimo notebook + Cedar policies | ✅ ready |
-| [**Cost Controls**](recipes/cost-controls/) | A per-project daily and monthly budget in US dollars, across the AI Gateway and custom agents, with a chargeback report | Notebook | ✅ ready |
+| [**Cost Controls**](recipes/cost-controls/) | A per-project daily and monthly budget in US dollars, across the AI Gateway and custom agents, with a chargeback report | Two notebooks | ✅ ready |
 | [**User delegation**](recipes/self-managed/user-delegation/) | An agent acts for a person signed in with Okta, with an ID token or an ID-JAG (Cross App Access). Customer-managed deployments only. | Notebook and Python scripts | ✅ ready |
 | OpenAI SDK / LangChain (greenfield) | New projects | — | coming soon |
 | Portkey | Teams on Portkey | — | coming soon |

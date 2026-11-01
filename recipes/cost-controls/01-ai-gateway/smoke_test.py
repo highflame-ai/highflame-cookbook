@@ -1,7 +1,7 @@
-"""Smoke test for the cost-controls recipe. It reads the budget and reports a call that costs $0.
+"""Smoke test for the Cost Controls AI Gateway notebook. It reads the budget and spends nothing.
 
-It never spends anything and never uses up a budget: the scheduled CI run shares a tenant with
-every other recipe, and a used-up budget would block their prompts for the rest of the day.
+It sends no model call: the scheduled CI run shares a tenant with every other recipe, and a
+used-up budget would block their prompts for the rest of the day.
 
 Exit 0 on success, 1 on failure, 2 when credentials are absent (skip).
 """
@@ -29,13 +29,6 @@ try:
         identity_base_url=AUTH_URL,
         token_url=f"{AUTH_URL}/oauth2/token",
     )
-
-    # One input token of gpt-4o-mini prices below one micro-dollar, so this records a $0 call.
-    report = client.usage.report(model="gpt-4o-mini", provider="openai", input_tokens=1)
-    if not report.priced:
-        print("FAIL: Highflame did not find gpt-4o-mini in its price table")
-        sys.exit(1)
-    print(f"OK: usage report accepted, recorded={report.recorded}, cost=${report.cost_micros / 1e6:.6f}")
 
     # A read, never a block: monitor mode, and no tokens.
     decision = client.guard.evaluate_prompt("budget check", mode="monitor", debug=True)
