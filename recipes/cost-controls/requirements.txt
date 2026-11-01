@@ -1,0 +1,4 @@
+highflame>=0.7.0   # usage.report() arrived in 0.7.0
+openai>=1.40       # the gateway speaks the OpenAI API, and the custom agent calls OpenAI directly
+python-dotenv>=1.0
+jupyterlab>=4.0
