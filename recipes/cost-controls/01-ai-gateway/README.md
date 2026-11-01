@@ -37,7 +37,7 @@ jupyter lab cost_controls_ai_gateway.ipynb
 ```
 
 The notebook registers an agent, calls `gpt-4o` through the gateway with the ordinary OpenAI client,
-and keeps going until the budget is used up. The committed outputs are a run on studio.highflame.ai:
+and keeps going until the budget is used up. From a run on studio.highflame.ai:
 
 ```
 project today: [####................]  22% of $0.05 (~$0.011)     <- call 1
@@ -49,15 +49,14 @@ project today: [####................]  22% of $0.05 (~$0.011)     <- call 1
 
 What the agent got back:
   Highflame Security: Prompt blocked: this project has used its daily AI budget.
-
-Today, this project: $0.0574 over 5 calls
-
-By agent
-  cost-gateway-1238c0          $0.0574    5 calls  100%
 ```
 
-Call 5 crossed the budget and completed; call 6 was refused before it reached OpenAI. The notebook
+Call 5 crossed the budget and completed; call 6 was refused before it reached OpenAI. The chargeback
+report then showed $0.0574 over 5 calls, all by the notebook's agent, all `gpt-4o`. The notebook
 ends by deactivating the agent it registered.
+
+The bar shows the budget amount Highflame has, so an edit in Studio shows on the next read. The
+chargeback section prints what this run spent, and today's totals by agent and by model.
 
 `smoke_test.py` reads the budget and spends nothing:
 

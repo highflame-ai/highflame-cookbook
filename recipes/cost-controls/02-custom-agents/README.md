@@ -46,7 +46,7 @@ not belong to a registered agent.
 jupyter lab cost_controls_custom_agents.ipynb
 ```
 
-The committed outputs are a run on studio.highflame.ai:
+From a run on studio.highflame.ai:
 
 ```
 agent  : Support Summary Agent (cost-controls-support-agent, active)
@@ -59,13 +59,14 @@ project today: [####................]  21% of $0.05 (~$0.011)     <- call 1, $0.
 
 What the agent got back:
   Enterprise Policies Triggered: Daily Budget
-
-By agent
-  cost-controls-support-agent  $0.0569    6 calls  100%
 ```
 
 The dollar amounts are what Highflame priced each call at. Call 5 crossed the budget and completed;
-call 6 was refused at the guard check, before the model was called.
+call 6 was refused at the guard check, before the model was called. The chargeback report then put
+all of the spend on `cost-controls-support-agent`.
+
+The bar shows the budget amount Highflame has, so an edit in Studio shows on the next read. The
+chargeback section prints what this run spent, and today's totals by agent and by model.
 
 `smoke_test.py` reports a $0 call and reads the budget:
 
