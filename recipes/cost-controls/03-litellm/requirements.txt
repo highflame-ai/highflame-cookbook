@@ -1,0 +1,4 @@
+highflame>=0.7.0   # usage.report() arrived in 0.7.0; the notebook reads the budget and the chargeback with it
+python-dotenv>=1.0
+jupyterlab>=4.0
+# LiteLLM itself runs in the Docker image the notebook builds, so it is not needed here.

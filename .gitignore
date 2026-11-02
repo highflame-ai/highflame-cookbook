@@ -18,3 +18,8 @@ report.json
 # which for these recipes includes identity records — and it is regenerated
 # on every run, so it has no business in a commit.
 __marimo__/
+
+# The LiteLLM notebooks build their proxy image in these directories, and write the
+# proxy's env file there, with your keys.
+_highflame_litellm/
+_highflame_litellm_cost/
