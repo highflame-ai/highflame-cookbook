@@ -121,8 +121,18 @@ resp = litellm.completion(
 )
 ```
 
-A policy **deny** surfaces as an HTTP error from the gateway, which LiteLLM raises as an
-exception — the demo catches it and shows the policy reason.
+A policy **deny** does not raise. The gateway returns it as an ordinary HTTP 200
+completion whose text gives the reason (`Highflame Security: Prompt blocked: …`), so an
+agent shows the reason instead of crashing. Two markers tell a block from a model answer,
+and both reach LiteLLM SDK callers and LiteLLM proxy clients:
+
+| Marker | LiteLLM SDK | LiteLLM proxy client |
+| --- | --- | --- |
+| `x-highflame-policy-decision: deny` | `resp._hidden_params["additional_headers"]["llm_provider-x-highflame-policy-decision"]` | response header `llm_provider-x-highflame-policy-decision: deny` |
+| completion id that starts with `chatcmpl-blocked` | `resp.id` | `id` in the JSON body |
+
+The demo's `blocked_by_highflame(resp)` checks both. Only a policy rule that sets
+`@reject_status` turns a deny into an HTTP error, which LiteLLM raises as an exception.
 
 ---
 
@@ -280,8 +290,8 @@ the file includes a `guarded_completion()` helper that does exactly that.
 python smoke_test.py
 ```
 
-Sends a benign and a malicious prompt through Mode A and asserts: benign returns content,
-malicious is blocked. This is what this repo's CI runs on a schedule against a canary
+Sends a benign and a malicious prompt through Mode A and asserts: benign returns the
+model's answer, not a block; malicious is blocked. This is what this repo's CI runs on a schedule against a canary
 tenant — green means the recipe still works against live prod.
 
 ---
