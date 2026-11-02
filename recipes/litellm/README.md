@@ -284,6 +284,24 @@ the file includes a `guarded_completion()` helper that does exactly that.
 
 ---
 
+## Cost Controls: a per-project AI budget
+
+A Highflame project can carry a daily and a monthly budget in US dollars
+([`../cost-controls/`](../cost-controls/)). Both modes can run under it:
+
+- **Mode A** needs nothing. The gateway reports every call it forwards, and refuses new prompts
+  once the budget is used up. Deploy the budget template on the **AI Gateway** page.
+- **Mode B** needs one line: `report_usage: true` under the guardrail's `litellm_params` (or
+  `HIGHFLAME_REPORT_USAGE=1`). The guardrail then reports each successful call's token counts after
+  the client has its answer, and its `pre_call` check refuses the next prompt once the budget is used
+  up. Deploy the budget template on the **Custom Agents** page. Needs `highflame>=0.7.0`.
+
+The guardrail skips calls routed through the Highflame gateway, so a proxy that mixes both modes
+counts each call once. [`../cost-controls/03-litellm/`](../cost-controls/03-litellm/) runs Mode B
+end to end against a $0.05 budget.
+
+---
+
 ## Verify against prod
 
 ```bash

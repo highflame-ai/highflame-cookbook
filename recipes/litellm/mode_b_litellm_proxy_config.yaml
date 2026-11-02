@@ -44,6 +44,10 @@ guardrails:
       # session id on requests (litellm_session_id / metadata.session_id) and
       # disables Shield redaction write-back per LiteLLM's contract.
       # only_scan_new_messages: true
+      # Cost Controls: report each successful call's token counts to Highflame,
+      # so the project's USD budget counts them and pre_call refuses new prompts
+      # once it is used up. Needs highflame >= 0.7.0. See ../cost-controls/03-litellm/.
+      # report_usage: true
 
 # If your LiteLLM proxy also fronts MCP servers (the MCP gateway), the
 # *_mcp_call modes above inspect that traffic with no extra code. Note that

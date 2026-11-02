@@ -16,18 +16,19 @@ budget is used up.
 
 ---
 
-## Two notebooks, one for each way an agent reaches its model
+## Three notebooks, one for each way an agent reaches its model
 
 | Notebook | Your agent… | What you change |
 | --- | --- | --- |
 | [`01-ai-gateway/`](01-ai-gateway/) | sends its model calls through the **AI Gateway** | Nothing. The gateway reports every call. |
 | [`02-custom-agents/`](02-custom-agents/) | calls its model directly and uses the **Highflame SDK** (Custom Agents) | One `usage.report()` call after each model call, signed with the agent's own key from the Registry. |
+| [`03-litellm/`](03-litellm/) | sits behind a **LiteLLM proxy** that calls the provider directly, with the Highflame guardrail | One line in the guardrail's config: `report_usage: true`. |
 
 Each notebook spends real money on a $0.05 daily budget and watches it stop. With `gpt-4o` each
 call costs about one cent, so the sixth call is refused.
 
-**Give each notebook its own project.** A project has one budget, and both paths count against it.
-If you run both notebooks in one project, the first one uses up the budget and the second one
+**Give each notebook its own project.** A project has one budget, and every path counts against it.
+If you run two notebooks in one project, the first one uses up the budget and the second one
 starts blocked.
 
 ---

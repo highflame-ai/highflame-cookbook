@@ -35,6 +35,12 @@ Shield decisions map as:
 Every guard call is attributed to the caller LiteLLM identified, and carries
 LiteLLM's own session id — see "Who is behind the request" below.
 
+Opt-in Cost Controls: with `report_usage: true` in the guardrail's YAML (or
+HIGHFLAME_REPORT_USAGE=1), the guardrail also reports each successful model call's
+token counts to Highflame, which prices them and adds them to the project's daily
+and monthly spend. Once the project's budget is used up, the pre_call check refuses
+the next prompt — see "Cost Controls" below. Needs highflame >= 0.7.0.
+
 Two ways to use it:
 
   * LiteLLM proxy: register `HighflameGuardrail` under `guardrails:` (see
@@ -48,6 +54,7 @@ import hashlib
 import json
 import os
 from typing import Any
+from urllib.parse import urlparse
 
 try:
     from dotenv import load_dotenv
@@ -249,6 +256,123 @@ def guard_context(request_data: dict) -> tuple[str, dict]:
     return session_id, guard_metadata
 
 
+# --- Cost Controls: report what each model call used --------------------------
+# A Highflame project can carry a daily or monthly budget in US dollars. Highflame
+# counts spend from usage reports: it prices each report's token counts and adds
+# the price to the project. The pre_call guard check then refuses new prompts once
+# the budget is used up, before any more money is spent at the provider.
+#
+# The guardrail sends one report per successful model call, after LiteLLM has
+# answered the client, so a report adds no latency. It is off unless you turn it
+# on: `report_usage: true` under the guardrail's litellm_params, or
+# HIGHFLAME_REPORT_USAGE=1. A failed report is logged and dropped; it never fails
+# the request.
+#
+# Calls routed through the Highflame gateway (Mode A) are skipped: the gateway
+# reports those itself, and a second report would count the spend twice.
+
+_TRUTHY = {"1", "true", "yes"}
+_REPORT_USAGE = os.environ.get("HIGHFLAME_REPORT_USAGE", "").lower() in _TRUTHY
+
+# Set HIGHFLAME_LOG_USAGE=1 to log each report (model, tokens, LiteLLM's call id,
+# the price Highflame put on it) and each call the guardrail skipped, with the reason.
+_LOG_USAGE = os.environ.get("HIGHFLAME_LOG_USAGE", "").lower() in _TRUTHY
+
+_GATEWAY_HOST = urlparse(
+    os.environ.get("HIGHFLAME_GATEWAY_URL", "https://gateway.highflame.ai/llm/v1")
+).hostname
+
+
+def _count(value: Any) -> int:
+    try:
+        return max(0, int(value or 0))
+    except (TypeError, ValueError):
+        return 0
+
+
+def _field(obj: Any, key: str) -> Any:
+    """Read `key` from a pydantic object or a dict, whichever LiteLLM handed over."""
+    if obj is None:
+        return None
+    if isinstance(obj, dict):
+        return obj.get(key)
+    return getattr(obj, key, None)
+
+
+def _mock_route(kwargs: dict) -> bool:
+    """True for a route with `mock_response` in its config: LiteLLM answers it itself.
+
+    LiteLLM does not hand `mock_response` to callbacks, so the route is looked up in
+    the proxy's router by its deployment id.
+    """
+    litellm_params = kwargs.get("litellm_params") or {}
+    if litellm_params.get("mock_response") is not None:
+        return True
+    slp = kwargs.get("standard_logging_object") or {}
+    model_id = slp.get("model_id") or (litellm_params.get("model_info") or {}).get("id")
+    try:
+        from litellm.proxy.proxy_server import llm_router
+    except Exception:  # noqa: BLE001 — proxy not running (SDK / tests)
+        return False
+    if not (llm_router and model_id):
+        return False
+    deployment = llm_router.get_deployment(model_id=model_id)
+    return getattr(getattr(deployment, "litellm_params", None), "mock_response", None) is not None
+
+
+def usage_report(kwargs: dict, response_obj: Any) -> tuple[dict | None, str]:
+    """Build the usage report for one LiteLLM call, or say why there is none.
+
+    Returns (fields for usage.areport, "") or (None, the reason the call is skipped).
+    """
+    slp = kwargs.get("standard_logging_object") or {}
+    if slp.get("cache_hit"):
+        return None, "LiteLLM cache hit, no provider call"
+    if _mock_route(kwargs):
+        return None, "mock_response route, no provider call"
+    litellm_params = kwargs.get("litellm_params") or {}
+    api_base = slp.get("api_base") or litellm_params.get("api_base") or ""
+    if _GATEWAY_HOST and urlparse(api_base).hostname == _GATEWAY_HOST:
+        return None, "routed through the Highflame gateway, which reports it"
+
+    usage = _field(response_obj, "usage")
+    prompt = _count(slp.get("prompt_tokens") or _field(usage, "prompt_tokens"))
+    output = _count(slp.get("completion_tokens") or _field(usage, "completion_tokens"))
+    # LiteLLM's prompt_tokens includes cached input. Highflame prices cache reads
+    # and cache writes at their own rates, so split them out of the fresh input.
+    cache_read = _count(_field(_field(usage, "prompt_tokens_details"), "cached_tokens"))
+    cache_write = _count(_field(usage, "cache_creation_input_tokens"))
+    fresh = max(0, prompt - cache_read - cache_write)
+    if not (fresh or output or cache_read or cache_write):
+        return None, "no tokens"
+
+    metadata = litellm_params.get("metadata") or {}
+    provider = slp.get("custom_llm_provider") or litellm_params.get("custom_llm_provider") or ""
+    model = slp.get("model") or kwargs.get("model") or ""
+    # LiteLLM can keep its routing prefix on the model (`openai/gpt-4o`). Highflame
+    # takes the provider separately, so send the bare model name the gateway sends.
+    if provider and model.startswith(f"{provider}/"):
+        model = model[len(provider) + 1:]
+    return {
+        "model": model,
+        "provider": provider,
+        "input_tokens": fresh,
+        "output_tokens": output,
+        "cache_read_tokens": cache_read,
+        "cache_write_tokens": cache_write,
+        # LiteLLM's call id: Highflame drops a second report with the same id.
+        "usage_id": slp.get("litellm_call_id") or kwargs.get("litellm_call_id"),
+        # The same session id the guard calls carry (see guard_context).
+        "session_id": (
+            litellm_params.get("litellm_session_id")
+            or slp.get("session_id")
+            or metadata.get("session_id")
+            or slp.get("litellm_call_id")
+            or kwargs.get("litellm_call_id")
+        ),
+    }, ""
+
+
 # --- LiteLLM proxy guardrail (unified interface) ------------------------------
 
 try:
@@ -257,11 +381,42 @@ try:
     class HighflameGuardrail(CustomGuardrail):
         """Consults Shield for every text and tool call LiteLLM passes through.
 
-        Implementing ``apply_guardrail`` (and nothing else) opts into LiteLLM's
+        Implementing ``apply_guardrail`` (and no per-endpoint hook) opts into LiteLLM's
         unified guardrail path: the proxy invokes it for chat/completions,
         /v1/messages, /responses, streaming iterators, and — under the
         ``*_mcp_call`` modes — the MCP gateway's tool calls and tool results.
         """
+
+        def __init__(self, report_usage: bool | str | None = None, **kwargs):
+            super().__init__(**kwargs)
+            # `report_usage` arrives from the guardrail's YAML; the env var is the fallback.
+            if report_usage is None:
+                self.report_usage = _REPORT_USAGE
+            else:
+                self.report_usage = str(report_usage).lower() in _TRUTHY
+
+        async def async_log_success_event(self, kwargs, response_obj, start_time, end_time):
+            """Report the call's token counts, so the project's budget counts it."""
+            if not self.report_usage:
+                return
+            try:
+                fields, skipped = usage_report(kwargs, response_obj)
+                if fields is None:
+                    if _LOG_USAGE:
+                        print(f"[highflame] usage not reported: {skipped}", flush=True)
+                    return
+                result = await _hf.usage.areport(**fields, timeout=2.0)
+                if _LOG_USAGE:
+                    print(
+                        f"[highflame] usage reported: {fields['provider']}/{fields['model']} "
+                        f"in={fields['input_tokens']} out={fields['output_tokens']} "
+                        f"cached={fields['cache_read_tokens']} session_id={fields['session_id']} "
+                        f"call_id={fields['usage_id']} "
+                        f"priced={result.priced} cost_usd={result.cost_micros / 1e6:.6f}",
+                        flush=True,
+                    )
+            except Exception as exc:  # noqa: BLE001 — a lost report must never fail a call
+                print(f"[highflame] usage report failed: {type(exc).__name__}: {exc}", flush=True)
 
         async def apply_guardrail(self, inputs, request_data, input_type, logging_obj=None):
             content_type = "prompt" if input_type == "request" else "response"
