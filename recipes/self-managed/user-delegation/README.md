@@ -126,7 +126,9 @@ Do these steps once, in Highflame Studio.
    Policies** → Create Policy.
    - Under **Allowed grant types**, turn on **Token Exchange** for flow 1, and **JWT Bearer**
      for flow 2. A new policy allows only **API Key** and **Client Credentials**.
-   - List the scopes the agent may get for a person, for example `tools:read`.
+   - Scopes are optional. The scripts ask for none unless you set `SCOPE`, and nothing in
+     this recipe checks one. If you set `SCOPE`, list each of its scopes here: Highflame
+     refuses a scope the policy does not allow.
 
    Then register the agent with that policy: Registry → Agents → **Inventory** → Register
    Identity.
@@ -171,8 +173,8 @@ Integrator Free Plan org:
 
 1. **Create the Highflame integration.** In the OIN Wizard, choose OIDC and **Cross App
    Access**, with the role **Resource app**. Set its **Issuer URL** to Highflame's issuer.
-   Studio shows that value in **Setup checklists** → **Okta (ID-JAG)**, step 4. Add the
-   scopes your agents ask for, for example `tools:read`.
+   Studio shows that value in **Setup checklists** → **Okta (ID-JAG)**, step 4. If your
+   agents ask for scopes (`SCOPE`), add them here.
 2. **Make an instance.** The wizard's test page needs the Okta Browser Plugin. Choose
    **Generate Instance**, and assign the person to the instance.
 3. **Let agents call it.** On the instance, open **Machine Assignments** → **Callers** →
@@ -222,7 +224,7 @@ Flow 2, with the example values of this README:
   email            jane@acme.com
   client_id        0oa1b2c3d4e5f6g7h8i9
   act.sub          0oa1b2c3d4e5f6g7h8i9
-  scope            tools:read
+  scope            <absent>
   resource         <absent>
 
 2. The Highflame token: for the person, with the agent in act
@@ -230,7 +232,7 @@ Flow 2, with the example values of this README:
   principal_type   user
   act.sub          spiffe://highflame.example/acct/proj/agent/support-agent
   aud              ['https://gateway.highflame.example.com/mcp/notion']
-  scope            tools:read
+  scope            <absent>
   user_idp_iss     https://acme.okta.com
   user_idp_sub     00u1a2b3c4d5e6f7g8h9
 
@@ -240,8 +242,9 @@ Flow 2, with the example values of this README:
 - `sub` is the person's Highflame user, not the agent. `act.sub` is the agent.
 - `aud` binds the token to the one MCP server the agent asked for. It does not work on
   another server.
-- `scope` is what the person may let this agent do: the scopes the agent asked for, inside
-  its credential policy.
+- `scope` is absent because the agent asked for none. With `SCOPE` set, it is the scopes the
+  agent asked for, inside its credential policy. Highflame does not check them on a request;
+  a service of yours that reads the token can.
 - The ID token and the ID-JAG have no `email_verified` claim. That is why step 1 turns on
   **Trust this directory's email addresses**.
 
@@ -255,7 +258,7 @@ Run `python smoke_test.py` to run both flows again with the saved sign-in.
 |---|---|---|
 | `invalid_grant: the person is not a member of this organization` | Highflame did not find exactly one member with this email on a claimed domain, or the email is not trusted. | Make sure the person is a member with the same email as in Okta, and that the domain is claimed. Turn on **Trust this directory's email addresses** on the issuer. |
 | `policy_violation: … grant type "token_exchange" is not permitted` (or `"jwt_bearer"`) | The agent's credential policy does not allow the flow's grant type. | On the credential policy, turn on **Token Exchange** (flow 1) or **JWT Bearer** (flow 2). |
-| `policy_violation` about a scope | The agent asked for a scope that its credential policy does not allow. | Add the scope to the credential policy, or ask for less with `SCOPE`. |
+| `policy_violation` about a scope | The agent asked for a scope that its credential policy does not allow. | Add the scope to the credential policy, or ask for less with `SCOPE`. Nothing in this recipe needs one, so unsetting `SCOPE` also works. |
 | `invalid_client` from Highflame | The request is not signed with the key on the agent, or the agent has no OAuth client for this Okta app. | Check `AGENT_PRIVATE_KEY_PATH` against the agent's **Delegation key**. Check the **IdP sign-in link**, with **Create the agent's OAuth client** on. |
 | `the ID-JAG has no resource claim and the request names no resource` | The agent did not name the MCP server. | Set `MCP_SERVER_URL`. |
 | Okta: `invalid_target` | The agent sent `resource` to Okta, and the Okta connection has no resource indicator. | Do not send `resource` to Okta. Name the MCP server at Highflame, as `id_jag_flow.py` does. |

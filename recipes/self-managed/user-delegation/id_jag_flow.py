@@ -30,7 +30,8 @@ def main() -> int:
                         help="give Okta the person's refresh token instead of their ID token")
     args = parser.parse_args()
 
-    # 1. Ask Okta for an ID-JAG for the person, addressed to Highflame's issuer.
+    # 1. Ask Okta for an ID-JAG for the person, addressed to Highflame's issuer. It names a
+    #    scope only when SCOPE is set: one of the Highflame app's scopes in Okta.
     if args.from_refresh_token:
         subject, subject_type = read_token("refresh_token"), TOKEN_TYPE + "refresh_token"
         if not subject:
@@ -43,7 +44,7 @@ def main() -> int:
         "subject_token": subject,
         "subject_token_type": subject_type,
         "audience": highflame_issuer(),
-        "scope": scope(),
+        **({"scope": scope()} if scope() else {}),
     })
     if resp.is_error:
         print(f"Okta refused the ID-JAG request ({okta_error(resp)})")
