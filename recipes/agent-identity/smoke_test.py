@@ -115,11 +115,11 @@ def _static_checks() -> None:
         "Deactivation cascade-revokes them immediately."
     )
 
-    # No Highflame service checks the tools:* scopes, and the SDK is removing
+    # Shield no longer checks the tools:* scopes, and the SDK is removing
     # ToolScope. A notebook that imports it breaks on that release.
     for notebook in sorted(RECIPE_DIR.glob("*.ipynb")):
         assert "ToolScope" not in _notebook_code(notebook), (
-            f"{notebook.name} uses ToolScope. Nothing checks the tools:* scopes it names; "
+            f"{notebook.name} uses ToolScope. Shield no longer checks the tools:* scopes it names; "
             "request the recipe's own domain scopes instead."
         )
 
