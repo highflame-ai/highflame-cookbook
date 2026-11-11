@@ -263,5 +263,6 @@ Run `python smoke_test.py` to run both flows again with the saved sign-in.
 | `the ID-JAG has no resource claim and the request names no resource` | The agent did not name the MCP server. | Set `MCP_SERVER_URL`. |
 | Okta: `invalid_target` | The agent sent `resource` to Okta, and the Okta connection has no resource indicator. | Do not send `resource` to Okta. Name the MCP server at Highflame, as `id_jag_flow.py` does. |
 | Okta refuses the ID-JAG request | The agent is not an AI agent with a connection to the Highflame instance, or callers cannot use Cross App Access. | Do the steps in [The connection to Highflame](#the-connection-to-highflame-flow-2-only) again. |
+| Okta refuses the ID-JAG request, and the error names `scope` | `SCOPE` is not set, and the Highflame integration in Okta requires a scope. | Set `SCOPE` to a scope that the integration lists, and list the same scope on the agent's credential policy. |
 | Highflame refuses an ID-JAG that has a `resource` claim | The Okta connection sets a resource indicator that is not `MCP_SERVER_URL`. | Set the resource indicator to `MCP_SERVER_URL`, or remove it. |
 | The MCP server answers `401` | The token is bound to another URL. | Use the same URL for `MCP_SERVER_URL` and for the MCP calls. |
