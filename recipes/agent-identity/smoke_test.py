@@ -115,7 +115,18 @@ def _static_checks() -> None:
         "Deactivation cascade-revokes them immediately."
     )
 
-    print("OK: static checks passed (trust-boundary call, version floor, revocation claim, allowed gate)")
+    # Shield no longer checks the tools:* scopes, and the SDK is removing
+    # ToolScope. A notebook that imports it breaks on that release.
+    for notebook in sorted(RECIPE_DIR.glob("*.ipynb")):
+        assert "ToolScope" not in _notebook_code(notebook), (
+            f"{notebook.name} uses ToolScope. Shield no longer checks the tools:* scopes it names; "
+            "request the recipe's own domain scopes instead."
+        )
+
+    print(
+        "OK: static checks passed (trust-boundary call, version floor, revocation claim, "
+        "allowed gate, no ToolScope)"
+    )
 
 
 try:
@@ -134,7 +145,7 @@ if not api_key:
     sys.exit(2)
 
 from highflame import Highflame
-from highflame.zeroid import ToolScope, generate_keypair
+from highflame.zeroid import generate_keypair
 from highflame.zeroid.assertions import build_actor_assertion
 from highflame.zeroid.errors import TokenRevokedError
 
@@ -160,7 +171,7 @@ try:
         name="Smoke Orchestrator",
         external_id=f"smoke-orchestrator-{run_id}",
         sub_type="orchestrator",
-        allowed_scopes=[ToolScope.READ, ToolScope.EXECUTE, "orders:read"],
+        allowed_scopes=["orders:read"],
         **common,
     )
     created.append(orchestrator.agent.id)
@@ -169,7 +180,7 @@ try:
         name="Smoke Specialist",
         external_id=f"smoke-specialist-{run_id}",
         sub_type="tool_agent",
-        allowed_scopes=[ToolScope.READ, ToolScope.EXECUTE, "orders:read"],
+        allowed_scopes=["orders:read"],
         capabilities=["lookup_order"],
         public_key_pem=public_key_pem,
         **common,
@@ -180,7 +191,7 @@ try:
     delegated = orchestrator_client.tokens.delegate_to(
         wimse_uri=specialist.agent.wimse_uri,
         private_key_pem=private_key_pem,
-        scope=f"{ToolScope.READ} {ToolScope.EXECUTE} orders:read",
+        scope="orders:read",
     )
     verified = orchestrator_client.tokens.verify(delegated.access_token)
     assert verified.is_delegated(), "credential is not marked as delegated"

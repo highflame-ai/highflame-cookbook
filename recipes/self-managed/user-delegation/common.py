@@ -41,7 +41,13 @@ def setting(name: str, default: str | None = None) -> str:
 
 
 def scope() -> str:
-    return setting("SCOPE", "tools:read")
+    """The scopes the agent asks for, from SCOPE. Unset, it asks for none.
+
+    Nothing in this recipe checks a scope: the gateways decide with your policies. Ask for one
+    only when a service of yours reads it. Each scope asked for must be allowed by the agent's
+    credential policy, so a default here would break every policy that does not list it.
+    """
+    return os.environ.get("SCOPE", "").strip()
 
 
 def mcp_server_url() -> str:
