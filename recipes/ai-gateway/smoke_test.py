@@ -47,7 +47,7 @@ try:
     # exception type only and would swallow the reason.
     if reply.id.startswith("chatcmpl-blocked"):
         print(f"FAIL: the gateway REFUSED a benign request: {text[:120]!r}")
-        print("      Check the agent credential's scopes and the policies on this project.")
+        print("      Check the policies on this project.")
         sys.exit(1)
     print(f"OK: reached the model through the gateway, reply={text[:20]!r}")
 except Exception as exc:  # noqa: BLE001
