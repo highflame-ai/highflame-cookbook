@@ -1,0 +1,4 @@
+# What deploy.py and smoke_test.py need on your machine. The agent's own packages are in
+# agent/requirements.txt: deploy.py packages them for the runtime.
+boto3>=1.44            # AgentCore Identity's AWS_IAM_ID_TOKEN_JWT and code deployment need a recent boto3
+python-dotenv>=1.0

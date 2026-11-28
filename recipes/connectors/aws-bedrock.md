@@ -45,12 +45,23 @@ Open the **JSON** editor and paste:
   "Version": "2012-10-17",
   "Statement": [
     {
+      "Sid": "DiscoverAgents",
       "Effect": "Allow",
       "Action": [
         "bedrock:ListAgents",
         "bedrock:ListTagsForResource",
         "bedrock-agentcore:ListAgentRuntimes",
         "bedrock-agentcore:ListTagsForResource"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "LinkAgentCoreRuntimes",
+      "Effect": "Allow",
+      "Action": [
+        "bedrock-agentcore:GetAgentRuntime",
+        "iam:GetRole",
+        "iam:GetOutboundWebIdentityFederationInfo"
       ],
       "Resource": "*"
     }
@@ -69,7 +80,7 @@ Click **Create policy**.
 
 ![New policy](images/aws_policy.png)
 
-These permissions allow Highflame to list Bedrock agents and AgentCore runtimes and read their tags. Resource tags such as `Owner`, `owner-email`, `managed-by`, or `created-by` can provide the accountable-owner signal in Highflame.
+These permissions allow Highflame to list Bedrock agents and AgentCore runtimes and read their tags. The second statement lets Highflame link each AgentCore runtime to its execution role, so that the runtime can get Highflame tokens with its own AWS role (see [AgentCore agents, governed through configuration only](../agent-identity/agentcore-config-only/)). Linking also needs outbound web identity federation turned on in the account's IAM settings. Without these, the runtimes are still listed, but none is linked. Resource tags such as `Owner`, `owner-email`, `managed-by`, or `created-by` can provide the accountable-owner signal in Highflame.
 
 ---
 
