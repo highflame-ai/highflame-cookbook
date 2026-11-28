@@ -87,11 +87,31 @@ def _static_checks() -> None:
     # The floor has to carry the calls the notebooks make, or they import a
     # version without them and fail at runtime instead of at install time.
     # 0.6.0 adds current_actor() and prior_actors(), HighflameIntervention,
-    # agents.update(public_key_pem=...) and the person grants.
+    # agents.update(public_key_pem=...) and the person grants. 0.12.1 lets an
+    # agent without nhi:manage call verify_active() (sdk#177), which the swarm
+    # notebook's front door relies on.
     reqs = (RECIPE_DIR / "requirements.txt").read_text(encoding="utf-8")
-    assert "highflame[strands,langgraph]>=0.6.0" in reqs, (
-        "the highflame floor must be at least 0.6.0: the notebooks call "
-        "current_actor(), prior_actors() and HighflameIntervention"
+    assert "highflame[strands,langgraph]>=0.12.1" in reqs, (
+        "the highflame floor must be at least 0.12.1: the notebooks call "
+        "current_actor(), prior_actors() and HighflameIntervention, and the swarm "
+        "notebook's front door calls verify_active() without nhi:manage"
+    )
+
+    # A front door holds only the scope its job needs. From 0.12.1
+    # verify_active() reads the chain with the agent's own token, so the remote
+    # refunds agent must not be handed nhi:manage again (sdk#177).
+    refunds_line = next(
+        (
+            line
+            for line in code.splitlines()
+            if line.lstrip().startswith("refunds = register_specialist(")
+        ),
+        None,
+    )
+    assert refunds_line is not None, "the swarm notebook no longer registers the refunds agent"
+    assert "nhi:manage" not in refunds_line, (
+        "the swarm notebook gives its remote refunds agent nhi:manage. verify_active() needs "
+        "no management scope from highflame 0.12.1; register it with refunds:read only."
     )
 
     # From 0.6.0 step_up and defer come back as decisions, not errors. A gate on
@@ -124,8 +144,8 @@ def _static_checks() -> None:
         )
 
     print(
-        "OK: static checks passed (trust-boundary call, version floor, revocation claim, "
-        "allowed gate, no ToolScope)"
+        "OK: static checks passed (trust-boundary call, version floor, least-privilege door, "
+        "revocation claim, allowed gate, no ToolScope)"
     )
 
 
