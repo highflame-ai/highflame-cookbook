@@ -89,17 +89,20 @@ def _static_checks() -> None:
     # 0.6.0 adds current_actor() and prior_actors(), HighflameIntervention,
     # agents.update(public_key_pem=...) and the person grants. 0.12.1 lets an
     # agent without nhi:manage call verify_active() (sdk#177), which the swarm
-    # notebook's front door relies on.
+    # notebook's front door relies on. 0.13.0 lets a delegation name no scope,
+    # which every notebook now does.
     reqs = (RECIPE_DIR / "requirements.txt").read_text(encoding="utf-8")
-    assert "highflame[strands,langgraph]>=0.12.1" in reqs, (
-        "the highflame floor must be at least 0.12.1: the notebooks call "
-        "current_actor(), prior_actors() and HighflameIntervention, and the swarm "
-        "notebook's front door calls verify_active() without nhi:manage"
+    assert "highflame[strands,langgraph]>=0.13.0" in reqs, (
+        "the highflame floor must be at least 0.13.0: the notebooks call "
+        "current_actor(), prior_actors() and HighflameIntervention, delegate without "
+        "naming a scope, and the swarm notebook's front door calls verify_active() "
+        "without nhi:manage"
     )
 
-    # A front door holds only the scope its job needs. From 0.12.1
-    # verify_active() reads the chain with the agent's own token, so the remote
-    # refunds agent must not be handed nhi:manage again (sdk#177).
+    # The front door needs no scope. From 0.12.1 verify_active() reads the
+    # chain with the agent's own token, so the remote refunds agent is
+    # registered with no scopes at all: not nhi:manage (sdk#177), and none of
+    # the made-up domain scopes the notebooks used to teach.
     refunds_line = next(
         (
             line
@@ -109,9 +112,23 @@ def _static_checks() -> None:
         None,
     )
     assert refunds_line is not None, "the swarm notebook no longer registers the refunds agent"
-    assert "nhi:manage" not in refunds_line, (
-        "the swarm notebook gives its remote refunds agent nhi:manage. verify_active() needs "
-        "no management scope from highflame 0.12.1; register it with refunds:read only."
+    assert "nhi:manage" not in refunds_line and ":" not in refunds_line.split("(", 1)[1], (
+        "the swarm notebook registers its remote refunds agent with a scope. verify_active() "
+        "needs none from highflame 0.12.1; register it with no scopes."
+    )
+    register = next(
+        (
+            n
+            for n in ast.walk(tree)
+            if isinstance(n, ast.FunctionDef) and n.name == "register_specialist"
+        ),
+        None,
+    )
+    assert register is not None, "the swarm notebook no longer defines register_specialist()"
+    passed = {kw.arg for n in ast.walk(register) if isinstance(n, ast.Call) for kw in n.keywords}
+    assert "allowed_scopes" not in passed, (
+        "the swarm notebook registers its specialists with allowed_scopes. They need none: "
+        "what each may do is decided per call by policy, and the front door checks no scope."
     )
 
     # From 0.6.0 step_up and defer come back as decisions, not errors. A gate on
@@ -139,12 +156,12 @@ def _static_checks() -> None:
     # ToolScope. A notebook that imports it breaks on that release.
     for notebook in sorted(RECIPE_DIR.glob("*.ipynb")):
         assert "ToolScope" not in _notebook_code(notebook), (
-            f"{notebook.name} uses ToolScope. Shield no longer checks the tools:* scopes it names; "
-            "request the recipe's own domain scopes instead."
+            f"{notebook.name} uses ToolScope. Shield no longer checks the tools:* scopes it names, "
+            "and the recipe requests no scopes."
         )
 
     print(
-        "OK: static checks passed (trust-boundary call, version floor, least-privilege door, "
+        "OK: static checks passed (trust-boundary call, version floor, door holds no scopes, "
         "revocation claim, allowed gate, no ToolScope)"
     )
 
@@ -191,7 +208,6 @@ try:
         name="Smoke Orchestrator",
         external_id=f"smoke-orchestrator-{run_id}",
         sub_type="orchestrator",
-        allowed_scopes=["orders:read"],
         **common,
     )
     created.append(orchestrator.agent.id)
@@ -200,7 +216,6 @@ try:
         name="Smoke Specialist",
         external_id=f"smoke-specialist-{run_id}",
         sub_type="tool_agent",
-        allowed_scopes=["orders:read"],
         capabilities=["lookup_order"],
         public_key_pem=public_key_pem,
         **common,
@@ -211,7 +226,6 @@ try:
     delegated = orchestrator_client.tokens.delegate_to(
         wimse_uri=specialist.agent.wimse_uri,
         private_key_pem=private_key_pem,
-        scope="orders:read",
     )
     verified = orchestrator_client.tokens.verify(delegated.access_token)
     assert verified.is_delegated(), "credential is not marked as delegated"

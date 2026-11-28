@@ -12,10 +12,9 @@ use; the four pillars below are identical in all of them.
 
 1. **Agent identity.** Each agent is registered with Highflame and runs on its own key.
    Every decision Highflame makes is recorded against *that agent*.
-2. **Agent authorization.** Two layers. The agent's credential policy is a ceiling enforced when
-   a credential is issued — a scope outside it is refused before any policy runs. Your policies
-   then decide the rest, per tool, and each refusal names the policy that made it. Authority
-   handed to another agent is narrowed to what the delegator holds, never widened.
+2. **Agent authorization.** Your policies decide what each agent may do, per call and per tool,
+   and each refusal names the policy that made it. A credential handed to another agent says
+   who acts and for whom; it does not carry permissions of its own.
 3. **Agent runtime guardrails.** Each user prompt, tool call, tool result and model reply goes
    to Highflame before it proceeds, so prompt injection, data leaks and unsafe replies are
    stopped in flight.
@@ -24,9 +23,8 @@ use; the four pillars below are identical in all of them.
    and, when the request asks for them, every detector that ran.
 
 The **Multi-Agent** half turns the agent into an orchestrator that issues each specialist a
-short-lived credential of its own. Authority only narrows on the way down, every decision
-is attributed to the specialist that caused it, and revoking the orchestrator revokes the
-whole team.
+short-lived credential of its own. Every decision is attributed to the specialist that caused
+it, and revoking the orchestrator revokes the whole team.
 
 ---
 
@@ -37,6 +35,10 @@ service, your own dev or production deployment, and a self-hosted stack are all 
 them — you point at one by setting `HIGHFLAME_BASE_URL` and `HIGHFLAME_IDENTITY_URL`, and
 everything below is unchanged. The recipe is run against both a hosted tenant and a self-hosted
 deployment.
+
+On a self-hosted deployment, these notebooks need its scope rules in enforce mode: AuthN v1.21.2
+or later, with `HIGHFLAME_SCOPE_RULES=enforce`. Without it, the deployment refuses a delegation
+that names no scope, and a specialist registered with no scopes has no limit.
 
 ---
 
@@ -52,26 +54,17 @@ deployment.
 
    | Register | Scopes on its credential policy |
    | --- | --- |
-   | type `agent`, sub type `orchestrator` | `nhi:manage`, `orders:read`, `kb:read`; add `refunds:read` for the Strands Swarm notebook |
+   | type `agent`, sub type `orchestrator` | `nhi:manage` |
 
-   Only `nhi:manage` is a Highflame scope. `orders:read`, `kb:read` and `refunds:read` are
-   **custom scopes** that this recipe makes up for its example support team, the way you would
-   name scopes for your own APIs. Highflame does not define them and does not check them: it
-   issues one only when the credential policy lists it, and the service that receives the token
-   decides what it allows. In the Strands Swarm notebook, the remote agent's front door checks
-   `refunds:read`. In your own deployment, use names that fit your own APIs.
+   This identity **is** the orchestrator: it registers the specialists and delegates to them. The
+   registrations are attributed to this identity rather than to a shared key, which is the same
+   principle the rest of the recipe demonstrates. `nhi:manage` is the only scope it needs: a
+   delegated credential carries who acts and for whom, not scopes, and what each agent may do is
+   decided per call by the project's guardrail policies.
 
-   This identity **is** the orchestrator: it registers the specialists and delegates to them, so
-   its policy's scopes are the ceiling on everything it can hand out. Omit `orders:read` or
-   `kb:read` and delegation quietly narrows them away, leaving a specialist with less authority
-   than the code asked for and no error to say so. The registrations are attributed to this
-   identity rather than to a shared key, which is the same principle the rest of the recipe
-   demonstrates.
-
-   **List the scopes; do not leave the field empty.** An empty scope list puts no restriction on
-   the key, but it also leaves the key no scope to hand on: every delegation is then refused with
-   `invalid_scope: requested scopes are not available for delegation`. The Strands notebooks check
-   the key's scopes before they register anything.
+   **List `nhi:manage`; do not leave the field empty.** An empty scope list gives the key no scope
+   at all, so the first registration fails with `403 token missing nhi:manage scope`. The Strands
+   notebooks check the key's scope before they register anything.
 
    **`nhi:manage` is the one people miss.** It is what lets a key register other identities.
    Without it the identity is created, the key works and `whoami()` succeeds, and then the first
@@ -162,7 +155,7 @@ inside your own network, which is what makes the recipe work with no internet ac
 | [`langgraph_agent_identity.ipynb`](langgraph_agent_identity.ipynb) | LangGraph | One agent, then an orchestrator calling specialists as tools | The four pillars on a single agent; delegated credentials per specialist. Runs against a self-hosted deployment and your own model by setting three variables |
 | [`langgraph_gateway_agent_identity.ipynb`](langgraph_gateway_agent_identity.ipynb) | LangGraph + AI gateway | The same two patterns, with every model call routed through the Highflame AI gateway | No Highflame code in the agent. The gateway checks the prompt, each tool call, each tool result and the reply, and the model call itself; each specialist presents its delegated credential to the gateway, so attribution stays exact |
 | [`strands_bedrock_agent_identity.ipynb`](strands_bedrock_agent_identity.ipynb) | Strands | `langgraph_agent_identity`, section for section, on Amazon Bedrock with Strands hooks | The same Studio identity and setup. Per-agent IAM roles, so CloudTrail attributes the model calls to the same agent Highflame does |
-| [`strands_swarm_a2a_agent_identity.ipynb`](strands_swarm_a2a_agent_identity.ipynb) | Strands | A [Swarm](https://strandsagents.com/docs/user-guide/concepts/multi-agent/swarm/) of specialists that hand off to each other, plus a remote agent served over [A2A](https://strandsagents.com/docs/user-guide/concepts/multi-agent/agent-to-agent/) | The Studio identity as team lead, with `refunds:read` added. Hand-offs pass the same hooks as tool calls; the remote agent verifies the caller's Highflame credential at its front door (`401` without one, `403` without the right scope) and runs its own guardrails as itself |
+| [`strands_swarm_a2a_agent_identity.ipynb`](strands_swarm_a2a_agent_identity.ipynb) | Strands | A [Swarm](https://strandsagents.com/docs/user-guide/concepts/multi-agent/swarm/) of specialists that hand off to each other, plus a remote agent served over [A2A](https://strandsagents.com/docs/user-guide/concepts/multi-agent/agent-to-agent/) | The Studio identity as team lead. Hand-offs pass the same hooks as tool calls; the remote agent verifies the caller's Highflame credential at its front door (`401` without a live one) and runs its own guardrails as itself |
 | [`strands_interventions_and_agent_keys.ipynb`](strands_interventions_and_agent_keys.ipynb) | Strands | One agent under Strands' native `HighflameIntervention`, plus the decisions and key calls of SDK 0.6.0 | A prompt, a tool call and a tool result refused without an exception; a real `defer` returned as a decision (one Cedar policy to paste); `step_up` explained; `agents.update(public_key_pem=...)` gives a keyless agent its delegation key; the person grants `exchange_id_token` and `redeem_id_jag`, which skip on the hosted service |
 
 Read the row that matches your toolkit. The Strands notebooks are in order: the second and third
@@ -184,9 +177,8 @@ Run the cells top to bottom. What you'll see:
 
 | Step | What happens |
 | --- | --- |
-| Connect as the agent | The Studio-registered agent, nothing registered from code; `whoami()` shows the agent acting as itself. The Strands notebooks first check the AWS credentials and the key's scopes |
+| Connect as the agent | The Studio-registered agent, nothing registered from code; `whoami()` shows the agent acting as itself. The Strands notebooks first check the AWS credentials and the key's `nhi:manage` |
 | Ask about an order | The agent answers through its tools; every check is allowed |
-| Ask for a scope outside its credential policy | Refused at issuance with `invalid_scope`, before any policy or detector runs; a granted scope is issued exactly, a mix is narrowed and the token's `scopes` claim says which |
 | Ask it to delete an order | Refused by the allow-list before the tool body runs: `Authorization Grants — call_tool`. Without the allow-list the cell says the tool ran, and whether it actually did |
 | Leak a card number | Refused before the model is called, naming the policy: `Refused by Highflame: Enterprise Policies Triggered: privacy.defaults` |
 | Telemetry | One line per span; one decision's request ID, the policies that decided it, the signals that fired, and its attribution |
@@ -233,11 +225,9 @@ python smoke_test.py            # registers, delegates, guards, verifies, sets a
   evaluated twice. Pass `optimize=True` to the middleware or hooks to run only the detectors your
   active policies reference. The notebooks leave it off so every detector shows up in the
   telemetry section.
-- **Delegation scopes.** The orchestrator requests exactly the specialist's own scopes. What it
-  gets is the requested scopes that both the orchestrator holds and the specialist may hold;
-  anything else is dropped silently. Only when nothing survives is the exchange refused, with
-  `invalid_scope: requested scopes are not available for delegation`. The SDK refuses an empty
-  request before it is sent.
+- **Delegation names no scope.** The specialists are registered without scopes and the
+  orchestrator requests none. The delegated credential carries who acts and for whom (the actor
+  chain), and what each agent may do is decided per call by the project's guardrail policies.
 - **Bedrock Guardrails** can run alongside Highflame. They filter model input and output;
   Highflame decides per agent identity and also covers tool calls and results. The notebook
   leaves them off so every block you see comes from one place.
