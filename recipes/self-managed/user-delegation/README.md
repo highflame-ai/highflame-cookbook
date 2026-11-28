@@ -126,7 +126,7 @@ Do these steps once, in Highflame Studio.
    Policies** → Create Policy.
    - Under **Allowed grant types**, turn on **Token Exchange** for flow 1, and **JWT Bearer**
      for flow 2. A new policy allows only **API Key** and **Client Credentials**.
-   - Under **Allowed scopes**, list at least one scope, for example `orders:read`. Do not
+   - Under **Allowed scopes**, list at least one custom scope, for example `orders:read`. Do not
      leave the list empty: an empty list sets no ceiling, and the agent can then get any
      scope it asks for. The scripts ask for no scope unless you set `SCOPE`, and nothing in
      this recipe checks one. If you set `SCOPE`, list each of its scopes here: Highflame

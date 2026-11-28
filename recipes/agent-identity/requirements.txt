@@ -1,4 +1,4 @@
-highflame[strands,langgraph]>=0.6.0
+highflame[strands,langgraph]>=0.12.1   # 0.12.1: verify_active() needs no nhi:manage (the swarm notebook's front door)
 # Strands notebooks
 strands-agents[a2a]>=1.54      # [a2a] adds the A2A server/client used by the swarm notebook. HighflameIntervention needs >=1.43
 boto3>=1.43                    # Amazon Bedrock
