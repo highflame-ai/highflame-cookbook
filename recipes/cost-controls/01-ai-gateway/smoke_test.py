@@ -6,6 +6,10 @@ used-up budget would block their prompts for the rest of the day.
 Exit 0 on success, 1 on failure, 2 when credentials are absent (skip).
 """
 
+import preflight  # stops here if highflame is older than requirements.txt allows
+
+preflight.check()
+
 import os
 import sys
 

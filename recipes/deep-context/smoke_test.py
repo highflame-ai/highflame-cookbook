@@ -12,6 +12,10 @@ Exit 0 = the capability is live. Exit 1 = it regressed. Exit 2 = not configured.
 
 from __future__ import annotations
 
+import preflight  # stops here if highflame is older than requirements.txt allows
+
+preflight.check()
+
 import sys
 
 from deep_context import (

@@ -12,6 +12,10 @@ tokens.verify() as the gate at a trust boundary, because a local signature check
 cannot see a revocation.
 """
 
+import preflight  # stops here if highflame is older than requirements.txt allows
+
+preflight.check()
+
 import ast
 import os
 import pathlib

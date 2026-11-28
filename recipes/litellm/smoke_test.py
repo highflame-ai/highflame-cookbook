@@ -13,6 +13,10 @@ This is the entrypoint the cookbook's scheduled CI invokes with a canary tenant'
 """
 from __future__ import annotations
 
+import preflight  # stops here if highflame is older than requirements.txt allows
+
+preflight.check()
+
 import os
 import sys
 

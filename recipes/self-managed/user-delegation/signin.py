@@ -12,6 +12,10 @@ it already has these tokens: the two flows show what to do with them.
 
 from __future__ import annotations
 
+import preflight  # stops here if highflame is older than requirements.txt allows
+
+preflight.check()
+
 import base64
 import hashlib
 import secrets
