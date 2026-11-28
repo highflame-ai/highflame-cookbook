@@ -11,6 +11,10 @@ calls that server through the Highflame gateway.
 
 from __future__ import annotations
 
+import preflight  # stops here if highflame is older than requirements.txt allows
+
+preflight.check()
+
 import sys
 
 from highflame.zeroid import ZeroIDError

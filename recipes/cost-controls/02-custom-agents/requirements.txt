@@ -1,4 +1,5 @@
 highflame>=0.7.0   # usage.report() arrived in 0.7.0
+# highflame: tested-with 0.12.0   # the newest SDK this recipe's smoke test has passed on
 openai>=1.40       # the gateway speaks the OpenAI API, and the custom agent calls OpenAI directly
 python-dotenv>=1.0
 jupyterlab>=4.0

@@ -6,6 +6,13 @@ name: smoke
 # 2 = skipped (missing creds). Only a real failure reds the build, so this stays
 # green until the canary secrets below are set in repo settings:
 #   HIGHFLAME_API_KEY, OPENAI_API_KEY, ANTHROPIC_API_KEY
+#
+# The smoke job runs twice: on the newest highflame SDK, and on each recipe's
+# floor (its highflame>=X pinned to ==X), so a floor that is too low goes red.
+# In both, preflight.py (HIGHFLAME_PREFLIGHT_STRICT) makes an SDK deprecation an
+# error, so a recipe fails here before the name it uses is removed. That starts
+# with the first SDK release exporting HighflameDeprecationWarning; until then,
+# and on floors older than it, preflight says deprecations are not checked.
 on:
   push:
   pull_request:
@@ -14,8 +21,32 @@ on:
   workflow_dispatch:
 
 jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Preflight self-test
+        run: python .github/scripts/test_preflight.py
+      - name: Every SDK recipe carries an identical preflight.py
+        run: |
+          set -uo pipefail
+          bad=0
+          for req in $(grep -rlE '^highflame' recipes --include=requirements.txt); do
+            d="$(dirname "$req")"
+            cmp -s recipes/sdk/preflight.py "$d/preflight.py" || { echo "::error::$d/preflight.py is missing or differs from recipes/sdk/preflight.py"; bad=1; }
+          done
+          exit "$bad"
+
   smoke:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        sdk: [latest, floor]
+    name: smoke (${{ matrix.sdk }} SDK)
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -26,6 +57,8 @@ jobs:
           HIGHFLAME_API_KEY: ${{ secrets.HIGHFLAME_API_KEY }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          HIGHFLAME_PREFLIGHT_STRICT: "1"
+          SDK: ${{ matrix.sdk }}
         run: |
           # NOTE: Actions runs this under `bash -e`, and `set -uo pipefail` does
           # NOT clear -e. So every command that may legitimately fail has to be
@@ -41,9 +74,15 @@ jobs:
             d="$(dirname "$f")/"
             echo "::group::smoke ${d}"
             if [ -f "${d}requirements.txt" ]; then
+              req="${d}requirements.txt"
+              if [ "$SDK" = floor ]; then
+                # highflame>=X becomes highflame==X; every other line is unchanged.
+                req="$RUNNER_TEMP/requirements.txt"
+                sed -E 's/^(highflame(\[[^]]*\])?)[[:space:]]*>=[[:space:]]*/\1==/' "${d}requirements.txt" > "$req"
+              fi
               # Guarded: a broken requirements.txt is this recipe's failure, not
               # a reason to stop testing the others.
-              if ! pip install -q -r "${d}requirements.txt"; then
+              if ! pip install -q -r "$req"; then
                 echo "::endgroup::"
                 echo "::error::dependency install FAILED for ${d} — see the group above"
                 failed=1
@@ -53,8 +92,9 @@ jobs:
             rc=0
             python "$f" || rc=$?
             echo "::endgroup::"
+            hf="$(python -c 'from importlib.metadata import version; print(version("highflame"))' 2>/dev/null || echo none)"
             case "$rc" in
-              0) echo "::notice::passed ${d}" ;;
+              0) echo "::notice::passed ${d} (highflame ${hf})" ;;
               2) echo "::notice::skipped ${d} — smoke test reported missing credentials" ;;
               *) echo "::error::smoke FAILED for ${d} (exit ${rc})"; failed=1 ;;
             esac

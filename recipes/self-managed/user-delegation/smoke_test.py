@@ -13,6 +13,10 @@ Exit 0 on success, 1 on failure, 2 when the live check cannot run (skip).
 
 from __future__ import annotations
 
+import preflight  # stops here if highflame is older than requirements.txt allows
+
+preflight.check()
+
 import os
 import pathlib
 import py_compile

@@ -19,6 +19,10 @@ Runs against PROD by default. Needs HIGHFLAME_API_KEY + OPENAI_API_KEY.
 """
 from __future__ import annotations
 
+import preflight  # stops here if highflame is older than requirements.txt allows
+
+preflight.check()
+
 import os
 import sys
 

@@ -6,6 +6,14 @@ app = marimo.App(width="medium", app_title="Multi-turn guardrails — live")
 
 @app.cell
 def _():
+    import preflight
+
+    preflight.check()
+    return
+
+
+@app.cell
+def _():
     import marimo as mo
     return (mo,)
 
