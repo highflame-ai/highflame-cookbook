@@ -54,6 +54,13 @@ deployment.
    | --- | --- |
    | type `agent`, sub type `orchestrator` | `nhi:manage`, `orders:read`, `kb:read`; add `refunds:read` for the Strands Swarm notebook |
 
+   Only `nhi:manage` is a Highflame scope. `orders:read`, `kb:read` and `refunds:read` are
+   **custom scopes** that this recipe makes up for its example support team, the way you would
+   name scopes for your own APIs. Highflame does not define them and does not check them: it
+   issues one only when the credential policy lists it, and the service that receives the token
+   decides what it allows. In the Strands Swarm notebook, the remote agent's front door checks
+   `refunds:read`. In your own deployment, use names that fit your own APIs.
+
    This identity **is** the orchestrator: it registers the specialists and delegates to them, so
    its policy's scopes are the ceiling on everything it can hand out. Omit `orders:read` or
    `kb:read` and delegation quietly narrows them away, leaving a specialist with less authority
