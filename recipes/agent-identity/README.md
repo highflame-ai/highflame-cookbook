@@ -155,6 +155,10 @@ inside your own network, which is what makes the recipe work with no internet ac
 - *Optional:* an S3 bucket for `SESSION_BUCKET`, to persist the multi-agent conversation
   under the same id Highflame uses for its decisions.
 
+## On Amazon Bedrock AgentCore, with no Highflame code
+
+[`agentcore-config-only/`](agentcore-config-only/) deploys an ordinary Strands agent to AgentCore and governs it through configuration alone: AgentCore Identity gets the agent's Highflame token with the runtime's own AWS role, and the agent imports nothing from Highflame. It shows discovery and adoption, first contact, a guardrail block, a tool-policy block and Observatory attribution, with a smoke test.
+
 ## Five notebooks
 
 | Notebook | Toolkit | Pattern | What it adds |

@@ -1,0 +1,6 @@
+# What runs inside the AgentCore runtime. deploy.py packages these for Linux on ARM64.
+# None of them is a Highflame package.
+bedrock-agentcore>=1.28            # BedrockAgentCoreApp, and @requires_access_token (AgentCore Identity)
+strands-agents[openai]>=1.68       # the agent; OpenAIModel reaches Bedrock through the Highflame LLM gateway
+mcp>=2.3                           # the CRM's MCP server, and the agent's MCP client
+aws-bedrock-token-generator>=1.1   # a short-term Bedrock API key from the runtime's role
