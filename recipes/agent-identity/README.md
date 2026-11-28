@@ -36,9 +36,9 @@ them — you point at one by setting `HIGHFLAME_BASE_URL` and `HIGHFLAME_IDENTIT
 everything below is unchanged. The recipe is run against both a hosted tenant and a self-hosted
 deployment.
 
-On a self-hosted deployment, these notebooks expect its scope rules in enforce mode: AuthN v1.21.2
-or later, with `HIGHFLAME_SCOPE_RULES=enforce`. On a deployment without it, an empty scope list
-sets no limit, so give each specialist at least one scope.
+On a self-hosted deployment, these notebooks need its scope rules in enforce mode: AuthN v1.21.2
+or later, with `HIGHFLAME_SCOPE_RULES=enforce`. Without it, the deployment refuses a delegation
+that names no scope, and a specialist registered with no scopes has no limit.
 
 ---
 

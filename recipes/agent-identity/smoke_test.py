@@ -89,12 +89,14 @@ def _static_checks() -> None:
     # 0.6.0 adds current_actor() and prior_actors(), HighflameIntervention,
     # agents.update(public_key_pem=...) and the person grants. 0.12.1 lets an
     # agent without nhi:manage call verify_active() (sdk#177), which the swarm
-    # notebook's front door relies on.
+    # notebook's front door relies on. 0.13.0 lets a delegation name no scope,
+    # which every notebook now does.
     reqs = (RECIPE_DIR / "requirements.txt").read_text(encoding="utf-8")
-    assert "highflame[strands,langgraph]>=0.12.1" in reqs, (
-        "the highflame floor must be at least 0.12.1: the notebooks call "
-        "current_actor(), prior_actors() and HighflameIntervention, and the swarm "
-        "notebook's front door calls verify_active() without nhi:manage"
+    assert "highflame[strands,langgraph]>=0.13.0" in reqs, (
+        "the highflame floor must be at least 0.13.0: the notebooks call "
+        "current_actor(), prior_actors() and HighflameIntervention, delegate without "
+        "naming a scope, and the swarm notebook's front door calls verify_active() "
+        "without nhi:manage"
     )
 
     # The front door needs no scope. From 0.12.1 verify_active() reads the

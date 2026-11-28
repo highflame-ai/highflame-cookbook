@@ -1,4 +1,4 @@
-highflame>=0.3.25  # registers the agent identities
+highflame>=0.13.0  # registers the agent identities; 0.13.0 lets a delegation name no scope
 openai>=1.0             # the gateway speaks the OpenAI API
 python-dotenv>=1.0
 jupyterlab>=4.0
